@@ -1,0 +1,79 @@
+:root {
+  --fondo: #0b1020;
+  --tarjeta: #131a2e;
+  --borde: #26304d;
+  --texto: #e8ecf7;
+  --texto-suave: #9aa6c4;
+  --acento: #5b8cff;
+  --ok: #35c98e;
+  --pendiente: #f2b84b;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--fondo);
+  color: var(--texto);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Inter", sans-serif;
+  min-height: 100vh;
+}
+
+.contenedor {
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 4rem 1.5rem;
+}
+
+.marca {
+  font-size: 0.85rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--acento);
+  margin-bottom: 1rem;
+}
+
+h1 { font-size: 2.2rem; line-height: 1.2; margin-bottom: 1rem; }
+
+.proposito {
+  color: var(--texto-suave);
+  font-size: 1.05rem;
+  max-width: 60ch;
+  margin-bottom: 3rem;
+}
+
+.tarjetas {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1rem;
+  margin-bottom: 3rem;
+}
+
+.tarjeta {
+  background: var(--tarjeta);
+  border: 1px solid var(--borde);
+  border-radius: 12px;
+  padding: 1.25rem;
+}
+
+.tarjeta h2 { font-size: 0.95rem; margin-bottom: 0.5rem; }
+.tarjeta p { font-size: 0.85rem; color: var(--texto-suave); }
+
+.estado { display: inline-block; font-size: 0.75rem; padding: 0.15rem 0.6rem; border-radius: 99px; margin-bottom: 0.75rem; }
+.estado.ok { background: rgba(53, 201, 142, 0.15); color: var(--ok); }
+.estado.pendiente { background: rgba(242, 184, 75, 0.15); color: var(--pendiente); }
+
+.cta {
+  display: inline-block;
+  background: var(--acento);
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  padding: 0.9rem 1.6rem;
+  font-size: 1rem;
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.nota { margin-top: 0.75rem; font-size: 0.8rem; color: var(--texto-suave); }
+
+footer { margin-top: 4rem; font-size: 0.8rem; color: var(--texto-suave); }
