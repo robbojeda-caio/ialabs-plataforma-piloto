@@ -1,8 +1,8 @@
 # Estado de Construcción del Piloto
 
 **Agente responsable:** `constructor-piloto` (definido en `.claude/agents/constructor-piloto.md`)
-**Última actualización:** 2026-08-07 (tarde) · sesión de Claude Code
-**Fase actual:** F2 — Ingesta + RAG (WF-01 construido, publicado y probado estructuralmente ~60% — falta corpus real del usuario)
+**Última actualización:** 2026-08-08 · sesión de Claude Code
+**Fase actual:** F2 — Ingesta + RAG (WF-01 construido, publicado y probado estructuralmente ~60% — falta corpus real del usuario). Todas las compuertas G1–G9 resueltas.
 
 ---
 
@@ -21,13 +21,13 @@
 | Organización Supabase | `Ojeda_Roberto. Agentes IA` (`dmqfzquioklyxvnpyxwu`, plan free — costo USD 0/mes) |
 | Instancia n8n | La existente del usuario (n8n cloud, proyecto personal `1tZRfhEpWiFqYWA9`) — ver Adaptación A1 |
 | Credenciales n8n disponibles | Anthropic ✓ · OpenAI (créditos free, managed) ✓ · Gmail ✓ · Drive ✓ · Slack ✓ · SMTP ✓ |
-| Vercel | Proyecto `ialabs-plataforma-piloto` en team `team_vdUfcMOc05SQr2W5L5mKV2cE` · URL: `https://ialabs-plataforma-piloto-robbojeda-2293s-projects.vercel.app` |
+| Vercel | Proyecto `ialabs-plataforma-piloto` (id `prj_vQitUGaJt1VUXAKKtkG5bTPRsByV`) en team `team_vdUfcMOc05SQr2W5L5mKV2cE` · **conectado a GitHub (deploy continuo)** · Root Directory `frontend` · dominio: `https://ialabs-plataforma-piloto.vercel.app` · `/api/health` verificado OK |
+| Repo GitHub | `github.com/robbojeda-caio/ialabs-plataforma-piloto` (rama `main`) — fuente del deploy continuo de Vercel |
 | Migraciones aplicadas | `esquema_inicial` · `rls_y_politicas` · `rag_storage_realtime` · `endurecimiento_advisors` |
 | Workflow n8n smoke test | `[CORE] WF-00 Smoke Test F1` · id `bCLUihGwFRDTMG7I` · PUBLICADO · webhook `POST https://robbojeda.app.n8n.cloud/webhook/piloto-smoke` |
 | Workflow n8n ingesta | `[CORE] WF-01 Ingesta de Documentos` · id `741ybdLgusjZzITs` · PUBLICADO · webhook `POST https://robbojeda.app.n8n.cloud/webhook/piloto-ingesta` (header `hmac-webhooks-piloto`, mismo secreto que WF-00) · payload `{"document_id":"<uuid>"}` |
 | Credencial Supabase en n8n | `Supabase account` (`ugDUZeEyWqhj8tae`) — G1 ✓ |
 | Credencial auth webhooks | `Header Auth account` (`CeN5ODopdKajRAtZ`) — G2 ✓ |
-| Repo Git | Inicializado en el directorio del proyecto (rama `main`, commit inicial `3abe811`) — sin remoto aún |
 | Tenants de prueba | Org demo `IA Labs Demo Legal` (`aaaaaaaa-...0001`, techo L2) · Org control `Test Aislamiento` (`bbbbbbbb-...0002`) · usuarios `demo-admin@ialabs.test` / `test-b@ialabs.test` (solo RLS, sin login) |
 
 ## Compuertas humanas
@@ -63,17 +63,13 @@ Pendientes de mantenimiento (no bloquean F2):
 - [x] Variables de entorno en Vercel → **G7 resuelta (2026-08-08)** (las variables están cargadas)
 - [x] Remoto GitHub → **G8 resuelta (2026-08-08)**: repo real `github.com/robbojeda-caio/ialabs-plataforma-piloto`, push confirmado (`main` sincronizado, commit `b1474c1`), Keychain configurado para no repetir autenticación
 
-### G9 — NUEVO bloqueo: permisos de deploy en Vercel (2026-08-08)
+### G9 — RESUELTA (2026-08-08): permisos de deploy en Vercel
 
-Al intentar redesplegar para aplicar las variables de G7, tanto el deploy a producción como a preview fallaron con **403 Forbidden**: *"You don't have permission to create a [Production/Preview] Deployment for this project"*. El primer deploy (el que creó el proyecto) sí funcionó — algo cambió desde entonces.
+Causa real: no era un problema de rol/permiso sino de **visibilidad del proyecto** para la integración — mi conexión dejó de ver el proyecto original por completo (`list_projects` devolvía vacío). Se resolvió reconectando vía **Vercel → Add New Project → Import Git Repository** apuntando al repo `robbojeda-caio/ialabs-plataforma-piloto` (recién creado en G8), lo cual generó una nueva autorización de acceso. De paso, esto deja el deploy en modo correcto según el diseño (doc 01 §5): **deploy continuo por Git**, ya no por subida manual de archivos vía MCP (cierra la Adaptación A3).
 
-**Qué revisar tú:**
-1. En Vercel → tu perfil (esquina superior derecha) → **Settings → Integrations** (o busca "Claude" / "MCP" / "Connections"): confirma que la integración que uso sigue autorizada y con permiso de escritura, no solo lectura.
-2. En el proyecto `ialabs-plataforma-piloto` → **Settings → General**: confirma que tu rol en el team `robbojeda-2293s-projects` es Owner o Member (no Viewer/limitado).
-3. Revisa si el proyecto tiene activada alguna protección de despliegue (**Settings → Deployment Protection**) que ahora exija aprobación.
+En el camino apareció un segundo problema (no de permisos): el import inicial trajo **Root Directory** vacío (raíz del repo) en vez de `frontend/`, donde vive el código Next.js — el build fallaba con "Couldn't find any pages or app directory". Corregido por el usuario en Settings → General → Root Directory = `frontend`, seguido de Redeploy manual.
 
-No reintentaré el deploy hasta que confirmes cuál era la causa — reintentar un 403 no lo resuelve.
-**Consecuencia mientras tanto:** el frontend en Vercel sigue en la versión desplegada anteriormente (sin las variables de entorno nuevas activas); esto no bloquea F2 (que corre entero en n8n/Supabase), solo pausa el avance visual del esqueleto de F5.
+**Verificado end-to-end:** deployment `dpl_HG3sCPmNQ5JVDEm4MNPL7tLhFAtt` en estado `READY`; `GET https://ialabs-plataforma-piloto.vercel.app/api/health` responde `{"supabase_configurada": true, "webhook_n8n_configurado": true}`.
 
 ## Checklist F2 — Ingesta + RAG
 
@@ -144,6 +140,8 @@ Al pedir al usuario que cargue un secreto en una credencial de n8n (tipo Header 
 | 2026-08-07 | WF-01 publicado y activo | Webhook `POST .../webhook/piloto-ingesta` |
 | 2026-08-08 | Usuario resolvió G7 (env vars en Vercel) | Confirmado por el usuario |
 | 2026-08-08 | Intento de redeploy para aplicar G7 → **403 Forbidden** en producción y en preview | Nuevo bloqueo **G9**, pendiente de diagnóstico del usuario |
+| 2026-08-08 | Corregido remoto GitHub (URL real del usuario) y push exitoso | **G8 resuelta**: repo `robbojeda-caio/ialabs-plataforma-piloto` sincronizado |
+| 2026-08-08 | Usuario reconectó Vercel vía Import Git Repository; corrigió Root Directory a `frontend`; redeploy | **G9 resuelta**: deployment `READY`, `/api/health` confirma Supabase y webhook n8n configurados |
 
 ## Próximos pasos del constructor (orden)
 
