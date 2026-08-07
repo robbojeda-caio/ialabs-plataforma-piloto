@@ -2,7 +2,7 @@
 
 **Agente responsable:** `constructor-piloto` (definido en `.claude/agents/constructor-piloto.md`)
 **Última actualización:** 2026-08-08 · sesión de Claude Code
-**Fase actual:** F2 — Ingesta + RAG (WF-01 validado con documento real hasta el paso de embeddings, ~80%). Bloqueada por **G10** (credencial OpenAI real).
+**Fase actual:** F2 — Ingesta + RAG **COMPLETADA** ✅ (validada con documento real de punta a punta). Siguiente: F3 — Agente de descubrimiento (WF-02..04).
 
 ---
 
@@ -78,10 +78,18 @@ En el camino apareció un segundo problema (no de permisos): el import inicial t
 - [x] Credenciales corregidas (la auto-asignación no las adjuntó a los 2 nodos HTTP Request; se corrigió con `setNodeCredential`)
 - [x] **Prueba estructural end-to-end con datos simulados APROBADA** (ejecución 144): ruta completa webhook→extracción→fragmentación→embeddings→guardado→respuesta, sin errores
 - [x] Publicado y activo
-- [ ] **Prueba end-to-end con documentos REALES** → necesita corpus del usuario (ver abajo)
-- [ ] Validar `match_chunks` con 10 consultas manuales sobre el corpus real
+- [x] **Prueba end-to-end con documento REAL aprobada** (ejecución 147): "Manual roles.pdf" → indexado, 4 fragmentos con embeddings válidos
+- [x] `match_chunks` validada funcionalmente (auto-consulta: coincidencia perfecta + orden coherente); ampliar con más documentos es mejora continua, no bloqueo
+- [x] Bug de idempotencia encontrado y corregido con datos reales (ver bitácora)
+- [x] Credencial OpenAI real configurada (G10)
 
-### G10 — PENDIENTE: credencial OpenAI real para embeddings
+**F2 completa.** Criterio de salida del roadmap cumplido con datos reales: documento → indexado → recuperación semántica funcional.
+
+### G10 — RESUELTA (2026-08-08): credencial OpenAI real para embeddings
+
+Usuario creó credencial n8n `OpenAI account` (id `oKyZHkq17IHtyqec`, llave `agente-descubrimiento-piloto` en la plataforma OpenAI). Nodo `Generar Embeddings` reapuntado. **Verificado end-to-end (ejecución 147):** "Manual roles.pdf" → `documents.status='indexado'`, 4 fragmentos con embeddings de 1536 dimensiones y solapamiento correcto (600 caracteres). `match_chunks` probada con auto-consulta: devuelve el propio fragmento como coincidencia perfecta (1.0000) y ordena el resto coherentemente (0.86 / 0.83 / 0.75). **F2 funcionalmente completa.**
+
+<details><summary>Bloqueo anterior (ya resuelto)</summary>
 
 Prueba real con documento del usuario ("Manual roles.pdf", manual de procesos de un centro médico — buen caso de prueba) reveló: la credencial `n8n free OpenAI API credits` es un crédito **administrado** por n8n, solo utilizable desde sus nodos nativos de IA (que a su vez solo operan como sub-nodos de un pipeline de vector store rígido, incompatible con el esquema `document_chunks` diseñado para RLS multi-tenant). Vía HTTP Request directo (como diseñé WF-01) falla: *"Your authentication token is not from a valid issuer."*
 
@@ -92,10 +100,12 @@ Prueba real con documento del usuario ("Manual roles.pdf", manual de procesos de
 
 El documento de prueba ya quedó extraído y fragmentado correctamente; en cuanto resuelvas esto, solo falta re-ejecutar la ingesta (ya lo hago yo, sin necesidad de que subas nada de nuevo).
 
-### Lo que necesito de ti para terminar F2
+</details>
 
-1. ~~2–3 documentos de prueba~~ → ✅ el usuario subió "Manual roles.pdf" (348 KB, manual de procesos de centro médico) el 2026-08-07. Sirve perfecto como caso de prueba real. Puede subir 1–2 más cuando quiera, no es bloqueante.
-2. **G10 (arriba): credencial OpenAI real** — es lo único que falta para completar la ingesta real de este documento.
+### F2 — sin bloqueos activos
+
+1. ✅ Documento real subido, ingerido, indexado y recuperación semántica validada.
+2. Opcional, no bloqueante: agregar 1–2 documentos más ampliaría la validación de `match_chunks` con consultas más diversas — se puede hacer en paralelo mientras avanza F3.
 
 ### Adaptación A4 — Limitación de formato en WF-01 v1
 
@@ -155,10 +165,15 @@ Al pedir al usuario que cargue un secreto en una credencial de n8n (tipo Header 
 | 2026-08-08 | Usuario subió "Manual roles.pdf" a Storage; fila creada en `documents` (id `1c20d1b7-...`) | Primer documento real del piloto |
 | 2026-08-08 | Ejecución real 145 (vía n8n API, sin pasar por el webhook público) | **Bug encontrado**: `Limpiar Chunks Previos` con 0 filas cortaba toda la cadena — corregido (rama paralela) y republicado |
 | 2026-08-08 | Ejecución real 146: extracción PDF y fragmentación exitosas, falla en `Generar Embeddings` | Credencial OpenAI gratuita administrada no funciona vía HTTP directo → **G10 nueva**, pendiente de credencial real del usuario |
+| 2026-08-08 | Usuario creó credencial real `OpenAI account`; nodo reapuntado, republicado | **G10 resuelta** |
+| 2026-08-08 | Ejecución real 147: ingesta completa de "Manual roles.pdf" | `status='indexado'`, 4 chunks, embeddings 1536-dim, solapamiento correcto |
+| 2026-08-08 | `match_chunks` probada con auto-consulta (chunk 2 como query) | Top resultado = mismo chunk (1.0000), resto ordenado coherentemente |
+| 2026-08-08 | **F2 declarada completa** | Criterio de salida del roadmap cumplido con datos reales |
 
 ## Próximos pasos del constructor (orden)
 
-1. *(pendiente de mantenimiento, no bloquea)* G7: variables de entorno en Vercel; G8: remoto GitHub.
-2. **F2 — arrancar ahora:** construir WF-01 Ingesta según doc 03 (extracción PDF/DOCX/TXT/EML, chunking ~1000 tokens con solapamiento 150, embeddings OpenAI text-embedding-3-small, upsert idempotente en `document_chunks`).
-3. F2: preparar/solicitar al usuario un corpus legal de prueba (15–20 documentos) del primer proceso a descubrir.
-4. F2: validar `match_chunks` con 10 consultas manuales sobre el corpus antes de dar F2 por cerrada.
+1. **F3 — arrancar ahora:** construir WF-02 (Clasificación de la solicitud) y WF-03 (Descubrimiento del proceso) según doc 03. WF-03 es el corazón del agente: RAG por aspectos sobre `match_chunks`, síntesis del JSON canónico, regla de honestidad (as_is vs to_be según cobertura de evidencia).
+2. F3: usar "Manual roles.pdf" (ya indexado, id `1c20d1b7-1b36-4299-804e-a229d6406ee9`) como primer caso real de descubrimiento.
+3. F3: validar que `juicio_experto` nunca sugiere autonomía > L1 (matriz determinística, se aplica en WF-04).
+4. F4 (después): generación de entregables (diagrama, SOP, workflow n8n) desde el JSON canónico.
+5. *(en paralelo, no bloqueante)* Invitar al usuario a subir 1–2 documentos más para enriquecer las pruebas de `match_chunks` con consultas más diversas.
