@@ -2,7 +2,7 @@
 
 **Agente responsable:** `constructor-piloto` (definido en `.claude/agents/constructor-piloto.md`)
 **Última actualización:** 2026-08-08 · sesión de Claude Code
-**Fase actual:** F2 — Ingesta + RAG (WF-01 construido, publicado y probado estructuralmente ~60% — falta corpus real del usuario). Todas las compuertas G1–G9 resueltas.
+**Fase actual:** F2 — Ingesta + RAG (WF-01 validado con documento real hasta el paso de embeddings, ~80%). Bloqueada por **G10** (credencial OpenAI real).
 
 ---
 
@@ -81,11 +81,21 @@ En el camino apareció un segundo problema (no de permisos): el import inicial t
 - [ ] **Prueba end-to-end con documentos REALES** → necesita corpus del usuario (ver abajo)
 - [ ] Validar `match_chunks` con 10 consultas manuales sobre el corpus real
 
+### G10 — PENDIENTE: credencial OpenAI real para embeddings
+
+Prueba real con documento del usuario ("Manual roles.pdf", manual de procesos de un centro médico — buen caso de prueba) reveló: la credencial `n8n free OpenAI API credits` es un crédito **administrado** por n8n, solo utilizable desde sus nodos nativos de IA (que a su vez solo operan como sub-nodos de un pipeline de vector store rígido, incompatible con el esquema `document_chunks` diseñado para RLS multi-tenant). Vía HTTP Request directo (como diseñé WF-01) falla: *"Your authentication token is not from a valid issuer."*
+
+**Qué necesito de ti:** una llave real de OpenAI (`sk-...`), añadida como **nueva credencial n8n** separada de la gratuita:
+1. Crea una cuenta/llave en [platform.openai.com/api-keys](https://platform.openai.com/api-keys) (requiere método de pago cargado, pero el costo es mínimo: ~USD 0.02 por cada 1M tokens con `text-embedding-3-small` — para el piloto, centavos totales).
+2. En n8n → Credentials → **New** → tipo **OpenAi API** → pega la llave → guarda con un nombre claro, ej. `OpenAI real (embeddings)`.
+3. Avísame el nombre que le pusiste — actualizo el nodo `Generar Embeddings` para usar esa credencial en vez de la gratuita.
+
+El documento de prueba ya quedó extraído y fragmentado correctamente; en cuanto resuelvas esto, solo falta re-ejecutar la ingesta (ya lo hago yo, sin necesidad de que subas nada de nuevo).
+
 ### Lo que necesito de ti para terminar F2
 
-1. **2–3 documentos de prueba** en PDF o texto plano (.txt/.md) — ver limitación de formato abajo. Pueden ser un SOP, un contrato tipo, o cualquier documento del proceso legal que quieras que descubramos primero (intake, revisión de contratos, o requerimientos).
-2. Súbelos tú mismo al bucket `documentos` de Supabase Storage: **Supabase Dashboard → proyecto `ialabs-piloto-descubrimiento` → Storage → bucket `documentos`** → crea la carpeta `aaaaaaaa-0000-0000-0000-000000000001/aaaaaaaa-1111-0000-0000-000000000001/` (es la organización y proyecto de prueba que ya existen) y sube ahí los archivos.
-3. Avísame los nombres de archivo que subiste — yo creo las filas correspondientes en la tabla `documents` (vía SQL) y ejecuto la ingesta real para validarla contra tus datos.
+1. ~~2–3 documentos de prueba~~ → ✅ el usuario subió "Manual roles.pdf" (348 KB, manual de procesos de centro médico) el 2026-08-07. Sirve perfecto como caso de prueba real. Puede subir 1–2 más cuando quiera, no es bloqueante.
+2. **G10 (arriba): credencial OpenAI real** — es lo único que falta para completar la ingesta real de este documento.
 
 ### Adaptación A4 — Limitación de formato en WF-01 v1
 
@@ -142,6 +152,9 @@ Al pedir al usuario que cargue un secreto en una credencial de n8n (tipo Header 
 | 2026-08-08 | Intento de redeploy para aplicar G7 → **403 Forbidden** en producción y en preview | Nuevo bloqueo **G9**, pendiente de diagnóstico del usuario |
 | 2026-08-08 | Corregido remoto GitHub (URL real del usuario) y push exitoso | **G8 resuelta**: repo `robbojeda-caio/ialabs-plataforma-piloto` sincronizado |
 | 2026-08-08 | Usuario reconectó Vercel vía Import Git Repository; corrigió Root Directory a `frontend`; redeploy | **G9 resuelta**: deployment `READY`, `/api/health` confirma Supabase y webhook n8n configurados |
+| 2026-08-08 | Usuario subió "Manual roles.pdf" a Storage; fila creada en `documents` (id `1c20d1b7-...`) | Primer documento real del piloto |
+| 2026-08-08 | Ejecución real 145 (vía n8n API, sin pasar por el webhook público) | **Bug encontrado**: `Limpiar Chunks Previos` con 0 filas cortaba toda la cadena — corregido (rama paralela) y republicado |
+| 2026-08-08 | Ejecución real 146: extracción PDF y fragmentación exitosas, falla en `Generar Embeddings` | Credencial OpenAI gratuita administrada no funciona vía HTTP directo → **G10 nueva**, pendiente de credencial real del usuario |
 
 ## Próximos pasos del constructor (orden)
 
