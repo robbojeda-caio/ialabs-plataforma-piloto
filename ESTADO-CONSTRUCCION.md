@@ -61,7 +61,7 @@
 
 Pendientes de mantenimiento (no bloquean F2):
 - [x] Variables de entorno en Vercel → **G7 resuelta (2026-08-08)** (las variables están cargadas)
-- [ ] Remoto GitHub → **G8**
+- [x] Remoto GitHub → **G8 resuelta (2026-08-08)**: repo real `github.com/robbojeda-caio/ialabs-plataforma-piloto`, push confirmado (`main` sincronizado, commit `b1474c1`), Keychain configurado para no repetir autenticación
 
 ### G9 — NUEVO bloqueo: permisos de deploy en Vercel (2026-08-08)
 
