@@ -60,8 +60,20 @@
 **F1 completa. Criterio de salida del roadmap (doc 07) cumplido: un webhook firmado de prueba viaja frontend→n8n→Supabase y escribe una fila.**
 
 Pendientes de mantenimiento (no bloquean F2):
-- [ ] Variables de entorno en Vercel → **G7**
+- [x] Variables de entorno en Vercel → **G7 resuelta (2026-08-08)** (las variables están cargadas)
 - [ ] Remoto GitHub → **G8**
+
+### G9 — NUEVO bloqueo: permisos de deploy en Vercel (2026-08-08)
+
+Al intentar redesplegar para aplicar las variables de G7, tanto el deploy a producción como a preview fallaron con **403 Forbidden**: *"You don't have permission to create a [Production/Preview] Deployment for this project"*. El primer deploy (el que creó el proyecto) sí funcionó — algo cambió desde entonces.
+
+**Qué revisar tú:**
+1. En Vercel → tu perfil (esquina superior derecha) → **Settings → Integrations** (o busca "Claude" / "MCP" / "Connections"): confirma que la integración que uso sigue autorizada y con permiso de escritura, no solo lectura.
+2. En el proyecto `ialabs-plataforma-piloto` → **Settings → General**: confirma que tu rol en el team `robbojeda-2293s-projects` es Owner o Member (no Viewer/limitado).
+3. Revisa si el proyecto tiene activada alguna protección de despliegue (**Settings → Deployment Protection**) que ahora exija aprobación.
+
+No reintentaré el deploy hasta que confirmes cuál era la causa — reintentar un 403 no lo resuelve.
+**Consecuencia mientras tanto:** el frontend en Vercel sigue en la versión desplegada anteriormente (sin las variables de entorno nuevas activas); esto no bloquea F2 (que corre entero en n8n/Supabase), solo pausa el avance visual del esqueleto de F5.
 
 ## Checklist F2 — Ingesta + RAG
 
@@ -130,6 +142,8 @@ Al pedir al usuario que cargue un secreto en una credencial de n8n (tipo Header 
 | 2026-08-07 | Corregidas credenciales de 2 nodos HTTP Request (auto-asignación las omitió) | `setNodeCredential` aplicado |
 | 2026-08-07 | Prueba estructural end-to-end con datos simulados (texto plano, 1 chunk) | Ejecución 144 — éxito, ruta completa sin errores |
 | 2026-08-07 | WF-01 publicado y activo | Webhook `POST .../webhook/piloto-ingesta` |
+| 2026-08-08 | Usuario resolvió G7 (env vars en Vercel) | Confirmado por el usuario |
+| 2026-08-08 | Intento de redeploy para aplicar G7 → **403 Forbidden** en producción y en preview | Nuevo bloqueo **G9**, pendiente de diagnóstico del usuario |
 
 ## Próximos pasos del constructor (orden)
 
