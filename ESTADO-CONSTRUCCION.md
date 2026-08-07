@@ -1,8 +1,8 @@
 # Estado de Construcción del Piloto
 
 **Agente responsable:** `constructor-piloto` (definido en `.claude/agents/constructor-piloto.md`)
-**Última actualización:** 2026-08-07 · sesión de Claude Code
-**Fase actual:** F1 — Infraestructura base **COMPLETADA** ✅ · siguiente: F2 — Ingesta + RAG
+**Última actualización:** 2026-08-07 (tarde) · sesión de Claude Code
+**Fase actual:** F2 — Ingesta + RAG (WF-01 construido, publicado y probado estructuralmente ~60% — falta corpus real del usuario)
 
 ---
 
@@ -24,6 +24,7 @@
 | Vercel | Proyecto `ialabs-plataforma-piloto` en team `team_vdUfcMOc05SQr2W5L5mKV2cE` · URL: `https://ialabs-plataforma-piloto-robbojeda-2293s-projects.vercel.app` |
 | Migraciones aplicadas | `esquema_inicial` · `rls_y_politicas` · `rag_storage_realtime` · `endurecimiento_advisors` |
 | Workflow n8n smoke test | `[CORE] WF-00 Smoke Test F1` · id `bCLUihGwFRDTMG7I` · PUBLICADO · webhook `POST https://robbojeda.app.n8n.cloud/webhook/piloto-smoke` |
+| Workflow n8n ingesta | `[CORE] WF-01 Ingesta de Documentos` · id `741ybdLgusjZzITs` · PUBLICADO · webhook `POST https://robbojeda.app.n8n.cloud/webhook/piloto-ingesta` (header `hmac-webhooks-piloto`, mismo secreto que WF-00) · payload `{"document_id":"<uuid>"}` |
 | Credencial Supabase en n8n | `Supabase account` (`ugDUZeEyWqhj8tae`) — G1 ✓ |
 | Credencial auth webhooks | `Header Auth account` (`CeN5ODopdKajRAtZ`) — G2 ✓ |
 | Repo Git | Inicializado en el directorio del proyecto (rama `main`, commit inicial `3abe811`) — sin remoto aún |
@@ -61,6 +62,26 @@
 Pendientes de mantenimiento (no bloquean F2):
 - [ ] Variables de entorno en Vercel → **G7**
 - [ ] Remoto GitHub → **G8**
+
+## Checklist F2 — Ingesta + RAG
+
+- [x] WF-01 Ingesta construido (26 nodos): webhook autenticado → obtener documento → marcar procesando → limpiar chunks previos (idempotencia) → descargar de Storage → enrutar por tipo (PDF/texto) → extraer → fragmentar (~1000 tokens, solape ~150) → lote de embeddings (OpenAI text-embedding-3-small) → guardar en `document_chunks` → marcar indexado + auditoría
+- [x] Manejo honesto de fallos: formato no soportado y extracción vacía marcan `documents.status='ilegible'` con `error_detail` claro + fila en `audit_log`, nunca fallan en silencio
+- [x] Credenciales corregidas (la auto-asignación no las adjuntó a los 2 nodos HTTP Request; se corrigió con `setNodeCredential`)
+- [x] **Prueba estructural end-to-end con datos simulados APROBADA** (ejecución 144): ruta completa webhook→extracción→fragmentación→embeddings→guardado→respuesta, sin errores
+- [x] Publicado y activo
+- [ ] **Prueba end-to-end con documentos REALES** → necesita corpus del usuario (ver abajo)
+- [ ] Validar `match_chunks` con 10 consultas manuales sobre el corpus real
+
+### Lo que necesito de ti para terminar F2
+
+1. **2–3 documentos de prueba** en PDF o texto plano (.txt/.md) — ver limitación de formato abajo. Pueden ser un SOP, un contrato tipo, o cualquier documento del proceso legal que quieras que descubramos primero (intake, revisión de contratos, o requerimientos).
+2. Súbelos tú mismo al bucket `documentos` de Supabase Storage: **Supabase Dashboard → proyecto `ialabs-piloto-descubrimiento` → Storage → bucket `documentos`** → crea la carpeta `aaaaaaaa-0000-0000-0000-000000000001/aaaaaaaa-1111-0000-0000-000000000001/` (es la organización y proyecto de prueba que ya existen) y sube ahí los archivos.
+3. Avísame los nombres de archivo que subiste — yo creo las filas correspondientes en la tabla `documents` (vía SQL) y ejecuto la ingesta real para validarla contra tus datos.
+
+### Adaptación A4 — Limitación de formato en WF-01 v1
+
+El nodo `extractFromFile` de esta instancia de n8n **no soporta DOCX ni EML** de forma nativa (solo PDF, texto plano, CSV, HTML, RTF, XML, ODS, XLS/XLSX). WF-01 v1 cubre PDF y texto plano; DOCX/EML se marcan `ilegible` con mensaje explícito en vez de fallar en silencio. Queda como mejora F2.1: evaluar un servicio externo de conversión (o LlamaParse, disponible como nodo conectado en esta instancia n8n) si el corpus real del cliente incluye Word/correo.
 
 ### Verificación E2E (para G6)
 
@@ -104,6 +125,11 @@ Al pedir al usuario que cargue un secreto en una credencial de n8n (tipo Header 
 | 2026-08-05 | Repo Git inicializado, commit inicial `3abe811` | 22 archivos |
 | 2026-08-07 | Diagnóstico y resolución de G6: credencial Header Auth con Value vacío (`__n8n_BLANK_VALUE_...`) | Usuario regeneró secreto y lo cargó en n8n |
 | 2026-08-07 | **G6 verificada — fila `id:2` confirmada en `audit_log`** | **F1 COMPLETADA** |
+| 2026-08-07 | Instrucciones G7 (env vars Vercel, con anon key obtenida vía MCP) y G8 (repo GitHub) entregadas al usuario | Pendientes de mantenimiento, no bloquean |
+| 2026-08-07 | WF-01 Ingesta de Documentos construido (26 nodos) vía SDK n8n | id `741ybdLgusjZzITs` |
+| 2026-08-07 | Corregidas credenciales de 2 nodos HTTP Request (auto-asignación las omitió) | `setNodeCredential` aplicado |
+| 2026-08-07 | Prueba estructural end-to-end con datos simulados (texto plano, 1 chunk) | Ejecución 144 — éxito, ruta completa sin errores |
+| 2026-08-07 | WF-01 publicado y activo | Webhook `POST .../webhook/piloto-ingesta` |
 
 ## Próximos pasos del constructor (orden)
 
