@@ -1,8 +1,8 @@
 # Estado de Construcción del Piloto
 
 **Agente responsable:** `constructor-piloto` (definido en `.claude/agents/constructor-piloto.md`)
-**Última actualización:** 2026-08-05 (tarde) · sesión de Claude Code
-**Fase actual:** F1 — Infraestructura base (~95% — solo falta la verificación end-to-end del webhook por el usuario)
+**Última actualización:** 2026-08-07 · sesión de Claude Code
+**Fase actual:** F1 — Infraestructura base **COMPLETADA** ✅ · siguiente: F2 — Ingesta + RAG
 
 ---
 
@@ -35,7 +35,7 @@
 |---|---|---|---|
 | **G1** | ✅ RESUELTA (2026-08-05) | Credencial Supabase en n8n | Credencial `Supabase account` verificada y usada por WF-00 |
 | **G2** | ✅ RESUELTA (2026-08-05) | Secreto de autenticación de webhooks | Credencial `Header Auth account` verificada; ver Adaptación A2 |
-| **G6** | 🔴 PENDIENTE | **Verificación end-to-end del webhook** (cierra F1) | Ejecutar el curl de la sección «Verificación E2E» de abajo con el nombre/valor del header que configuraste en `Header Auth account`, y avisar al agente con el resultado |
+| **G6** | ✅ RESUELTA (2026-08-07) | Verificación end-to-end del webhook | Confirmada: fila `id:2` en `audit_log` con `origen:"curl-usuario"`, `at: 2026-08-07 18:47:06 UTC`. Causa del error inicial: el campo Value de la credencial Header Auth había quedado vacío (`__n8n_BLANK_VALUE_...`) — resuelto regenerando el secreto con `openssl rand -hex 32` y cargándolo en n8n |
 | **G7** | 🔴 PENDIENTE | **Variables de entorno en Vercel** | En Vercel → proyecto `ialabs-plataforma-piloto` → Settings → Environment Variables: crear `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` (dashboard Supabase → Settings → API → anon public), `N8N_WEBHOOK_BASE_URL`, `WEBHOOK_AUTH_HEADER_NAME` y `WEBHOOK_AUTH_HEADER_VALUE` (los del Header Auth). Ver `frontend/.env.example` |
 | **G8** | 🟡 RECOMENDADA | **Remoto GitHub del repo** | Crear repo privado en GitHub y conectarlo (`git remote add origin ...` + push). Además conectar el repo al proyecto Vercel para deploy continuo (hoy se despliega por archivos vía MCP) |
 | **G3** | 🟡 DECISIÓN ABIERTA (no bloquea) | **VPS self-hosted** (ADR-3): contratar VPS (~USD 10–17/mes) o seguir en el n8n actual durante todo el piloto | Recomendación del agente: construir F1–F5 en el n8n actual y decidir VPS antes de F6 (cliente real), cuando pese la residencia de datos. Costo y pasos en doc 06 |
@@ -54,8 +54,13 @@
 - [x] Workflow smoke-test `[CORE] WF-00` creado, probado (ejecución 142 OK) y publicado
 - [x] **Test de aislamiento RLS APROBADO**: usuario A ve solo su org/proyecto, usuario B ídem, fuga cruzada = 0 en ambas direcciones
 - [x] Repo Git inicializado + esqueleto Next.js + deploy a Vercel
-- [ ] Verificación end-to-end del webhook con auth real (curl del usuario) → **G6**
+- [x] **Verificación end-to-end del webhook con auth real** → G6 resuelta, fila confirmada en `audit_log`
+
+**F1 completa. Criterio de salida del roadmap (doc 07) cumplido: un webhook firmado de prueba viaja frontend→n8n→Supabase y escribe una fila.**
+
+Pendientes de mantenimiento (no bloquean F2):
 - [ ] Variables de entorno en Vercel → **G7**
+- [ ] Remoto GitHub → **G8**
 
 ### Verificación E2E (para G6)
 
@@ -73,6 +78,10 @@ Respuesta esperada: `{"ok":true,"accion":"smoke_test.f1",...}`. Sustituir `<NOMB
 - **A1 (2026-08-05):** El piloto se construye sobre la **instancia n8n ya existente** del usuario (operativa, con credencial Anthropic y 6 agentes legales previos) en lugar de esperar el VPS del ADR-3. Razón: elimina el bloqueo de dinero/compra al inicio y acelera F1–F5. La decisión VPS queda en G3, a reevaluar antes del cliente real (residencia y aislamiento de datos).
 - **A2 (2026-08-05):** Autenticación de webhooks = **secreto compartido en header** (credencial Header Auth de n8n) sobre TLS, en lugar de firma HMAC-SHA256 computada. Razón: en n8n cloud un nodo Code no puede leer secretos de credenciales para verificar firmas, y el secreto en header sobre TLS ofrece protección equivalente para el piloto. La firma HMAC completa (integridad + anti-replay) se retoma si se migra al VPS (G3), donde hay variables de entorno propias. El doc 05 §4 queda matizado por esta adaptación.
 - **A3 (2026-08-05):** El deploy a Vercel se hace **por árbol de archivos vía MCP** (sin repo conectado). Cuando se resuelva G8 (remoto GitHub), pasar a deploy continuo por Git como manda el doc 01 §5.
+
+## Lección operativa (para futuras compuertas de credenciales)
+
+Al pedir al usuario que cargue un secreto en una credencial de n8n (tipo Header Auth u otras), especificar explícitamente: **"genera el valor primero en tu propia Terminal (ej. `openssl rand -hex 32`), guárdalo en tu gestor de contraseñas, y solo entonces pégalo en n8n"**. n8n oculta el campo Value tras guardar (no se puede releer) — si el usuario intenta verlo después, encontrará el marcador `__n8n_BLANK_VALUE_...` si nunca llegó a escribirse un valor real, lo cual causa `Authorization data is wrong!` en el webhook. Este fue el incidente real que retrasó G6.
 
 ## Decisiones registradas
 
@@ -93,11 +102,12 @@ Respuesta esperada: `{"ok":true,"accion":"smoke_test.f1",...}`. Sustituir `<NOMB
 | 2026-08-05 | WF-00 Smoke Test creado (SDK MCP), test ejecución 142 OK, publicado | Webhook activo `POST .../webhook/piloto-smoke` |
 | 2026-08-05 | Esqueleto Next.js creado (`frontend/`) y desplegado a Vercel | Proyecto `ialabs-plataforma-piloto` (deploy `dpl_BkWm...` en verificación) |
 | 2026-08-05 | Repo Git inicializado, commit inicial `3abe811` | 22 archivos |
+| 2026-08-07 | Diagnóstico y resolución de G6: credencial Header Auth con Value vacío (`__n8n_BLANK_VALUE_...`) | Usuario regeneró secreto y lo cargó en n8n |
+| 2026-08-07 | **G6 verificada — fila `id:2` confirmada en `audit_log`** | **F1 COMPLETADA** |
 
 ## Próximos pasos del constructor (orden)
 
-1. Verificar respuesta HTTP del deploy Vercel; si el build falló, corregir con `get_deployment_build_logs`.
-2. *(tras G6)* Confirmar la fila `smoke_test.f1` en `audit_log` vía SQL → **cierra F1 formalmente**.
-3. *(tras G7)* Redesplegar frontend y confirmar `/api/health` con `supabase_configurada: true`.
-4. F2: construir WF-01 Ingesta según doc 03 (extracción PDF/DOCX, chunking ~1000 tokens, embeddings, upsert idempotente) + preparar corpus legal de prueba.
-5. F2: validar `match_chunks` con 10 consultas manuales sobre el corpus.
+1. *(pendiente de mantenimiento, no bloquea)* G7: variables de entorno en Vercel; G8: remoto GitHub.
+2. **F2 — arrancar ahora:** construir WF-01 Ingesta según doc 03 (extracción PDF/DOCX/TXT/EML, chunking ~1000 tokens con solapamiento 150, embeddings OpenAI text-embedding-3-small, upsert idempotente en `document_chunks`).
+3. F2: preparar/solicitar al usuario un corpus legal de prueba (15–20 documentos) del primer proceso a descubrir.
+4. F2: validar `match_chunks` con 10 consultas manuales sobre el corpus antes de dar F2 por cerrada.
