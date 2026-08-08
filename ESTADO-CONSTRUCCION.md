@@ -1,8 +1,29 @@
 # Estado de Construcción del Piloto
 
 **Agente responsable:** `constructor-piloto` (definido en `.claude/agents/constructor-piloto.md`)
-**Última actualización:** 2026-08-08 (noche) · sesión de Claude Code
-**Fase actual:** F3 — Agente de descubrimiento: **WF-02+03 COMPLETADOS y verificados end-to-end con documento real** ✅. Falta WF-04 (análisis de automatización) para cerrar F3.
+**Última actualización:** 2026-08-08 (noche, v3) · sesión de Claude Code
+**Fase actual:** F3 — **WF-02+03 v3 optimizada, en producción y verificada** ✅. Falta WF-04 (análisis de automatización) para cerrar F3. Nuevas capacidades multimodales especificadas en [08-fuentes-multimodales-y-referencia.md](08-fuentes-multimodales-y-referencia.md).
+
+## Optimización v3 (2026-08-08) — medida, no estimada
+
+`[CORE] WF-02+03 ... v3` · id `qp8pfbyITOcx0KiP` · **PUBLICADO** (v2 `qsllubWGqAW2wRR9` despublicado, se conserva como respaldo).
+
+| Métrica | v2 | v3 | Cómo |
+|---|---|---|---|
+| Nodos | 40 | **22** | Eliminados 12 nodos HTTP de RAG |
+| Llamadas a API de embeddings por run | 6 | **0** | Las 6 preguntas de aspecto son estáticas → precalculadas en `aspect_queries` |
+| Llamadas RPC a Supabase para RAG | 6 | **1** | Nueva función `match_chunks_by_aspects` resuelve los 6 aspectos con `cross join lateral` |
+| Round-trips de red en el bloque RAG | 12 | **1** | — |
+| Pasos descubiertos (mismo corpus) | 2 | **8** | Instrucción de exhaustividad en el prompt |
+| Contabilidad de costo | manual | **automática** | `agent_runs.tokens_in/out/cost_usd` se llenan solos |
+
+Costo medido por descubrimiento: **USD 0.072** (7.8k tokens entrada + 3.2k salida) en 37 segundos. La ejecución 157 lo confirma en base de datos.
+
+**Utilidad de mantenimiento:** `[UTIL] Sembrar Embeddings de Aspectos` (id `q5lnnkhplSblgqpc`) — recalcula los 6 embeddings en **una** llamada batch. Ejecutar solo si se editan las preguntas en `aspect_queries`.
+
+### Por qué el enfoque de "caché de embeddings por hash" no aplicaba aquí
+
+Una recomendación externa sugirió cachear embeddings de chunks por hash del texto. La premisa estaba equivocada: los chunks de documentos **ya** se vectorizan una sola vez en WF-01 y viven en `document_chunks` — eso ya era caché por diseño. Lo que se re-vectorizaba innecesariamente eran las **preguntas** de los 6 aspectos, que son constantes. Precalcularlas elimina el 100% de esas llamadas, no solo un porcentaje de aciertos de caché.
 
 ## Checklist F3 — Agente de descubrimiento (parcial)
 
@@ -195,6 +216,7 @@ Al pedir al usuario que cargue un secreto en una credencial de n8n (tipo Header 
 
 ## Próximos pasos del constructor (orden)
 
+0. **WF-06 Descubrimiento por voz** (nuevo, alta prioridad): audio → Whisper → estructuración con Haiku → entra al pipeline existente como `documents.source_type='voz'`. Es la fuente de mayor valor/esfuerzo para el piloto legal: resuelve el caso del cliente que no tiene documentación pero sí conoce su proceso. Especificación completa en [08](08-fuentes-multimodales-y-referencia.md) §3.
 1. **WF-04 Análisis de automatización** (cierra F3): evalúa cada paso del canónico (volumen/repetición/task_class/riesgo) con la matriz determinística; `juicio_experto` nunca > L1; escribe `automation` en el canónico + `automation_assessments`. Encadenarlo al final de WF-02+03.
 2. F4: WF-05 generación de entregables (diagrama Mermaid determinístico, SOP, workflow n8n desde plantillas) desde el canónico.
 3. Insumo recomendado del usuario (no bloquea WF-04, sí mejora la demo): subir un documento que SÍ describa un proceso legal paso a paso (SOP de intake, checklist de revisión de contratos) para obtener un descubrimiento `as_is` rico — el manual médico actual solo permite `to_be` (comportamiento correcto de la regla de honestidad, pero una demo as_is luce más).
