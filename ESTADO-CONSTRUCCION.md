@@ -214,9 +214,22 @@ Al pedir al usuario que cargue un secreto en una credencial de n8n (tipo Header 
 | 2026-08-08 | Iteraciones de corrección v2: header `anthropic-version`, parser de bloques thinking, `organization_id` en process_steps, ruta JSON de setNodeParameter | Ejecuciones 151–154 |
 | 2026-08-08 | **Ejecución 155: pipeline completo EXITOSO en 20s** | Proceso + pasos + run + auditoría verificados por SQL. Costo por descubrimiento: ~USD 0.03 |
 
+## WF-06 Descubrimiento por Voz — construido ✅ (2026-08-08)
+
+`[CORE] WF-06 Descubrimiento por Voz` · id `1drZWkusLtn7ZEzi` · **PUBLICADO** · webhook `POST https://robbojeda.app.n8n.cloud/webhook/piloto-voz` · payload `{"project_id":"<uuid>","storage_path":"<org>/<proj>/<archivo>","filename":"<nombre>"}`
+
+Cadena: descarga audio de Storage → Whisper (`language=es`, `verbose_json`) → **guarda `transcript_raw` intacto** → edición estructural con Haiku → chunks + embeddings → `document_chunks`. Audio inaudible o transcripción < 30 caracteres se marca `ilegible` con motivo claro.
+
+Dos decisiones de diseño que conviene no perder:
+1. **El editor tiene prohibido inventar.** El prompt de Haiku permite corregir puntuación, quitar muletillas y organizar en secciones; prohíbe agregar pasos, actores, plazos o sistemas no mencionados. Lo ambiguo se marca `[impreciso: ...]` en vez de completarse. Un texto con vacíos marcados vale más que uno completo e inventado.
+2. **El texto indexado lleva su origen declarado** en el encabezado (`FUENTE: narración oral...`), de modo que cuando el agente de descubrimiento lo cite como evidencia, quede claro que su respaldo es un testimonio oral y no un documento formal.
+
+### Pendiente de prueba (G11)
+
+Necesito un audio en Storage para validarlo end-to-end. Te envié `prueba_voz_comp.m4a` (60s, voz sintética describiendo un intake de casos legales con actores, decisiones, plazos y sistemas). **Súbelo al bucket `documentos`, carpeta `aaaaaaaa-0000-0000-0000-000000000001/aaaaaaaa-1111-0000-0000-000000000001/`** y avísame — o mejor aún, graba tu propia voz describiendo un proceso real de tu negocio, que sería una prueba mucho más valiosa.
+
 ## Próximos pasos del constructor (orden)
 
-0. **WF-06 Descubrimiento por voz** (nuevo, alta prioridad): audio → Whisper → estructuración con Haiku → entra al pipeline existente como `documents.source_type='voz'`. Es la fuente de mayor valor/esfuerzo para el piloto legal: resuelve el caso del cliente que no tiene documentación pero sí conoce su proceso. Especificación completa en [08](08-fuentes-multimodales-y-referencia.md) §3.
 1. **WF-04 Análisis de automatización** (cierra F3): evalúa cada paso del canónico (volumen/repetición/task_class/riesgo) con la matriz determinística; `juicio_experto` nunca > L1; escribe `automation` en el canónico + `automation_assessments`. Encadenarlo al final de WF-02+03.
 2. F4: WF-05 generación de entregables (diagrama Mermaid determinístico, SOP, workflow n8n desde plantillas) desde el canónico.
 3. Insumo recomendado del usuario (no bloquea WF-04, sí mejora la demo): subir un documento que SÍ describa un proceso legal paso a paso (SOP de intake, checklist de revisión de contratos) para obtener un descubrimiento `as_is` rico — el manual médico actual solo permite `to_be` (comportamiento correcto de la regla de honestidad, pero una demo as_is luce más).

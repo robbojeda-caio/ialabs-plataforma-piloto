@@ -118,7 +118,7 @@ Esas cinco preguntas espejean los 6 aspectos del RAG, así la narración cubre l
 | Componente | Estado |
 |---|---|
 | Esquema de datos (`documents.source_type`, `transcript_raw`, `reference_patterns`, `process_benchmarks`, `match_reference_patterns`) | ✅ Aplicado en Supabase |
-| WF-06 Voz | Especificado, por construir |
+| WF-06 Voz | ✅ **Construido y publicado** — `[CORE] WF-06 Descubrimiento por Voz`, id `1drZWkusLtn7ZEzi`, webhook `POST .../webhook/piloto-voz` con payload `{project_id, storage_path, filename}`. Pendiente: prueba end-to-end con audio real |
 | WF-07 Pantalla | Especificado, por construir |
 | WF-08 Comparación con referencia | Especificado; requiere sembrar el corpus primero |
 | Captura en el frontend (MediaRecorder / getDisplayMedia) | Parte de F5 |
