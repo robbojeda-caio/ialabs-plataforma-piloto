@@ -1,8 +1,27 @@
 # Estado de Construcción del Piloto
 
 **Agente responsable:** `constructor-piloto` (definido en `.claude/agents/constructor-piloto.md`)
-**Última actualización:** 2026-08-08 · sesión de Claude Code
-**Fase actual:** F2 — Ingesta + RAG **COMPLETADA** ✅ (validada con documento real de punta a punta). Siguiente: F3 — Agente de descubrimiento (WF-02..04).
+**Última actualización:** 2026-08-08 (noche) · sesión de Claude Code
+**Fase actual:** F3 — Agente de descubrimiento: **WF-02+03 COMPLETADOS y verificados end-to-end con documento real** ✅. Falta WF-04 (análisis de automatización) para cerrar F3.
+
+## Checklist F3 — Agente de descubrimiento (parcial)
+
+- [x] WF-02+03 construido como un solo workflow (Adaptación A5): `[CORE] WF-02+03 Clasificacion y Descubrimiento v2` · id `qsllubWGqAW2wRR9` · PUBLICADO · webhook `POST .../webhook/piloto-descubrir` · payload `{"project_id":"<uuid>","process_type":"auto|intake_casos|revision_contratos|respuesta_requerimientos"}`
+- [x] Clasificación con Claude Haiku 4.5 (HTTP directo): clasificó correctamente `revision_contratos` (confianza 0.7) con justificación razonable
+- [x] RAG por 6 aspectos (actores/disparadores/actividades/decisiones/sistemas/fin) sobre `match_chunks`, con deduplicación de fragmentos repetidos entre aspectos
+- [x] Síntesis con Claude Sonnet 5 (HTTP directo) → JSON canónico validado y normalizado
+- [x] **Regla de honestidad verificada con caso real**: el manual médico no describe un proceso de revisión de contratos; el agente lo declaró (`kind='to_be'`) con vacíos de evidencia explícitos y citas textuales solo donde existen — no inventó nada
+- [x] Persistencia completa verificada por SQL: `processes` (canónico completo) + `process_steps` + `agent_runs` completado + `audit_log`
+- [ ] WF-04 Análisis de automatización (matriz determinística, `juicio_experto` ≤ L1) — siguiente
+- [ ] Validación humana ≥80% con proceso legal real (G5 — necesitará documentos que sí describan el proceso)
+
+### Adaptación A5 (2026-08-08): sin framework AI Agent de n8n
+
+Los nodos AI Agent/LangChain de n8n cloud provocaron 3 crashes por memoria (OOM) consecutivos en esta instancia. WF-02+03 v2 usa **HTTP Request directo a api.anthropic.com** (mismo patrón que los embeddings): liviano, estable, y con control total del payload. Requiere header `anthropic-version: 2023-06-01` (la credencial n8n solo inyecta la api key). Los parsers extraen el bloque `type='text'` de la respuesta (Claude Sonnet 5 puede anteponer bloques `thinking`).
+
+### Bug crítico encontrado y corregido (patrón n8n para memoria del proyecto)
+
+**Multiplicación de ítems en cascada:** los nodos de embedding se ejecutaban una vez por cada ítem entrante, multiplicando ítems entre aspectos (4→16→64→...→4096). Consecuencias: crashes de memoria y una síntesis de 434k tokens de entrada (~USD 1.30). Fix: `executeOnce: true` en los 6 nodos de embedding + deduplicación en la consolidación → **9.3k tokens (~USD 0.03) por descubrimiento**. Regla: en cadenas lineales de n8n donde un nodo produce N ítems, todo nodo posterior que NO deba iterar por ítem debe llevar `executeOnce`.
 
 ---
 
@@ -169,11 +188,14 @@ Al pedir al usuario que cargue un secreto en una credencial de n8n (tipo Header 
 | 2026-08-08 | Ejecución real 147: ingesta completa de "Manual roles.pdf" | `status='indexado'`, 4 chunks, embeddings 1536-dim, solapamiento correcto |
 | 2026-08-08 | `match_chunks` probada con auto-consulta (chunk 2 como query) | Top resultado = mismo chunk (1.0000), resto ordenado coherentemente |
 | 2026-08-08 | **F2 declarada completa** | Criterio de salida del roadmap cumplido con datos reales |
+| 2026-08-08 | WF-02+03 v1 construido (42 nodos, framework AI Agent) | 3 fallos de infraestructura consecutivos (2 OOM + 1 timeout), todos en los nodos LangChain |
+| 2026-08-08 | Diagnóstico de causa raíz: multiplicación de ítems en cascada + peso del framework LangChain | Adaptación A5: reconstruido como v2 con HTTP directo a Anthropic |
+| 2026-08-08 | Iteraciones de corrección v2: header `anthropic-version`, parser de bloques thinking, `organization_id` en process_steps, ruta JSON de setNodeParameter | Ejecuciones 151–154 |
+| 2026-08-08 | **Ejecución 155: pipeline completo EXITOSO en 20s** | Proceso + pasos + run + auditoría verificados por SQL. Costo por descubrimiento: ~USD 0.03 |
 
 ## Próximos pasos del constructor (orden)
 
-1. **F3 — arrancar ahora:** construir WF-02 (Clasificación de la solicitud) y WF-03 (Descubrimiento del proceso) según doc 03. WF-03 es el corazón del agente: RAG por aspectos sobre `match_chunks`, síntesis del JSON canónico, regla de honestidad (as_is vs to_be según cobertura de evidencia).
-2. F3: usar "Manual roles.pdf" (ya indexado, id `1c20d1b7-1b36-4299-804e-a229d6406ee9`) como primer caso real de descubrimiento.
-3. F3: validar que `juicio_experto` nunca sugiere autonomía > L1 (matriz determinística, se aplica en WF-04).
-4. F4 (después): generación de entregables (diagrama, SOP, workflow n8n) desde el JSON canónico.
-5. *(en paralelo, no bloqueante)* Invitar al usuario a subir 1–2 documentos más para enriquecer las pruebas de `match_chunks` con consultas más diversas.
+1. **WF-04 Análisis de automatización** (cierra F3): evalúa cada paso del canónico (volumen/repetición/task_class/riesgo) con la matriz determinística; `juicio_experto` nunca > L1; escribe `automation` en el canónico + `automation_assessments`. Encadenarlo al final de WF-02+03.
+2. F4: WF-05 generación de entregables (diagrama Mermaid determinístico, SOP, workflow n8n desde plantillas) desde el canónico.
+3. Insumo recomendado del usuario (no bloquea WF-04, sí mejora la demo): subir un documento que SÍ describa un proceso legal paso a paso (SOP de intake, checklist de revisión de contratos) para obtener un descubrimiento `as_is` rico — el manual médico actual solo permite `to_be` (comportamiento correcto de la regla de honestidad, pero una demo as_is luce más).
+4. Nota de calidad para F6: la salida del descubridor varía entre corridas (2–9 pasos con la misma evidencia delgada); afinar prompt con instrucción de exhaustividad estable cuando haya corpus real.
