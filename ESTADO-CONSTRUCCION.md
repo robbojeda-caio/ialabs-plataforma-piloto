@@ -1,8 +1,12 @@
 # Estado de Construcción del Piloto
 
 **Agente responsable:** `constructor-piloto` (definido en `.claude/agents/constructor-piloto.md`)
-**Última actualización:** 2026-08-08 (noche, v3) · sesión de Claude Code
-**Fase actual:** F3 — **WF-02+03 v3 optimizada, en producción y verificada** ✅. Falta WF-04 (análisis de automatización) para cerrar F3. Nuevas capacidades multimodales especificadas en [08-fuentes-multimodales-y-referencia.md](08-fuentes-multimodales-y-referencia.md).
+**Última actualización:** 2026-08-15 · sesión de Claude Code
+**Fase actual:** **F3 COMPLETADA** ✅ (WF-02+03 v3 + WF-04, ambos verificados con datos reales). Siguiente: F4 — generación de entregables (WF-05). Capacidades multimodales en [08-fuentes-multimodales-y-referencia.md](08-fuentes-multimodales-y-referencia.md).
+
+### ⚠️ Operación: el proyecto Supabase se pausa por inactividad
+
+El plan free pausa el proyecto tras ~7 días sin uso, y entonces **falla todo**: Storage no acepta subidas y las consultas dan timeout. Ocurrió el 2026-08-15 (el usuario no pudo subir un audio por esta causa, no por error suyo). Se reactiva desde el dashboard de Supabase o vía MCP (`restore_project`), tarda ~2 minutos. **Antes del cliente piloto real (F6) hay que pasar a Supabase Pro** (USD 25/mes) — ya estaba previsto en [06](06-costos-y-operacion.md), pero esta es la razón concreta y urgente: un cliente no puede encontrarse la plataforma caída porque nadie la usó una semana.
 
 ## Optimización v3 (2026-08-08) — medida, no estimada
 
@@ -214,6 +218,27 @@ Al pedir al usuario que cargue un secreto en una credencial de n8n (tipo Header 
 | 2026-08-08 | Iteraciones de corrección v2: header `anthropic-version`, parser de bloques thinking, `organization_id` en process_steps, ruta JSON de setNodeParameter | Ejecuciones 151–154 |
 | 2026-08-08 | **Ejecución 155: pipeline completo EXITOSO en 20s** | Proceso + pasos + run + auditoría verificados por SQL. Costo por descubrimiento: ~USD 0.03 |
 
+## WF-04 Análisis de Automatización — construido y verificado ✅ (2026-08-15) → **F3 COMPLETA**
+
+`[CORE] WF-04 Analisis de Automatizacion` · id `x3I3COhwQciUckaJ` · **PUBLICADO** · webhook `POST .../webhook/piloto-automatizacion` · payload `{"process_id":"<uuid>"}`
+
+**Principio de diseño:** el modelo evalúa **dimensiones objetivas** (volumen, repetición, clase de tarea, riesgo); el **sistema decide el nivel de autonomía** con una matriz determinística en JavaScript. El LLM nunca elige cuánta autonomía se concede — esa decisión no puede depender de la variabilidad de un modelo.
+
+**Resultado de la ejecución 159 sobre el proceso real descubierto (8 pasos), verificado por SQL:**
+
+| # | Paso | Clase | Riesgo | Nivel |
+|---|---|---|---|---|
+| 1 | Gestionar compras institucionales | enrutamiento | medio | **L2** |
+| 2 | Coordinar con proveedores | enrutamiento | bajo | **L2** |
+| 3 | Supervisar contratos de servicios | verificación | medio | **L2** |
+| 4 | Verificar cumplimiento legal y normativo | **juicio_experto** | alto | **L0** |
+| 5 | Aprobar convenios y alianzas | **juicio_experto** | alto | **L0** |
+| 6 | Autorizar contratación asociada | **juicio_experto** | alto | **L0** |
+| 7 | Coordinar auditorías internas/externas | verificación | medio | **L2** |
+| 8 | Dar seguimiento a indicadores | **juicio_experto** | medio | **L0** |
+
+**La salvaguarda profesional funciona con datos reales:** los cuatro pasos que exigen criterio de abogado —verificar cumplimiento legal, aprobar convenios, autorizar contrataciones, dar seguimiento con criterio— quedaron en **L0 (el agente solo informa, nunca actúa)**. Los cuatro pasos administrativos y de verificación quedaron en L2. Ningún paso superó el techo L2 de la organización. Costo: **USD 0.0154**, 13 segundos, 26 minutos automatizables estimados por ejecución del proceso.
+
 ## WF-06 Descubrimiento por Voz — construido ✅ (2026-08-08)
 
 `[CORE] WF-06 Descubrimiento por Voz` · id `1drZWkusLtn7ZEzi` · **PUBLICADO** · webhook `POST https://robbojeda.app.n8n.cloud/webhook/piloto-voz` · payload `{"project_id":"<uuid>","storage_path":"<org>/<proj>/<archivo>","filename":"<nombre>"}`
@@ -230,7 +255,7 @@ Necesito un audio en Storage para validarlo end-to-end. Te envié `prueba_voz_co
 
 ## Próximos pasos del constructor (orden)
 
-1. **WF-04 Análisis de automatización** (cierra F3): evalúa cada paso del canónico (volumen/repetición/task_class/riesgo) con la matriz determinística; `juicio_experto` nunca > L1; escribe `automation` en el canónico + `automation_assessments`. Encadenarlo al final de WF-02+03.
-2. F4: WF-05 generación de entregables (diagrama Mermaid determinístico, SOP, workflow n8n desde plantillas) desde el canónico.
-3. Insumo recomendado del usuario (no bloquea WF-04, sí mejora la demo): subir un documento que SÍ describa un proceso legal paso a paso (SOP de intake, checklist de revisión de contratos) para obtener un descubrimiento `as_is` rico — el manual médico actual solo permite `to_be` (comportamiento correcto de la regla de honestidad, pero una demo as_is luce más).
-4. Nota de calidad para F6: la salida del descubridor varía entre corridas (2–9 pasos con la misma evidencia delgada); afinar prompt con instrucción de exhaustividad estable cuando haya corpus real.
+1. **Probar WF-06 con el audio real del usuario** (`prueba 1 wf revisión contrato laboral.m4a`, 4.9 MB, ya grabado) — bloqueado hasta que lo suba al bucket, ver G11 arriba.
+2. **F4: WF-05 generación de entregables** desde el canónico: diagrama Mermaid determinístico con capa de autonomía por color, SOP as-is/to-be en documento, y workflow n8n ensamblado desde plantillas `tpl-*`.
+3. Encadenar WF-04 al final de WF-02+03 (hoy se invoca por separado; el encadenamiento hace que un clic dispare todo).
+4. Nota de calidad para F6: la salida del descubridor varía entre corridas con evidencia delgada; con corpus real conviene medir estabilidad.
