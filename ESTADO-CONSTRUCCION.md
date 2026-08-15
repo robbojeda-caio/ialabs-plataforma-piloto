@@ -249,13 +249,46 @@ Dos decisiones de diseño que conviene no perder:
 1. **El editor tiene prohibido inventar.** El prompt de Haiku permite corregir puntuación, quitar muletillas y organizar en secciones; prohíbe agregar pasos, actores, plazos o sistemas no mencionados. Lo ambiguo se marca `[impreciso: ...]` en vez de completarse. Un texto con vacíos marcados vale más que uno completo e inventado.
 2. **El texto indexado lleva su origen declarado** en el encabezado (`FUENTE: narración oral...`), de modo que cuando el agente de descubrimiento lo cite como evidencia, quede claro que su respaldo es un testimonio oral y no un documento formal.
 
-### Pendiente de prueba (G11)
+### ✅ VERIFICADO end-to-end con voz real del usuario (2026-08-15) — hito del piloto
 
-Necesito un audio en Storage para validarlo end-to-end. Te envié `prueba_voz_comp.m4a` (60s, voz sintética describiendo un intake de casos legales con actores, decisiones, plazos y sistemas). **Súbelo al bucket `documentos`, carpeta `aaaaaaaa-0000-0000-0000-000000000001/aaaaaaaa-1111-0000-0000-000000000001/`** y avísame — o mejor aún, graba tu propia voz describiendo un proceso real de tu negocio, que sería una prueba mucho más valiosa.
+El usuario grabó su propia narración (`prueba 1 wf revision contrato laboral.m4a`, 4.93 MB, 2:40 min) describiendo el proceso real de revisión de contratos laborales de su estudio. **Cadena completa validada: voz → transcripción → descubrimiento → análisis de automatización.**
+
+| Etapa | Resultado |
+|---|---|
+| Transcripción (Whisper) | 2.135 caracteres, español, 160 s de audio |
+| Edición estructural (Haiku) | Fiel: organizó en secciones sin agregar nada (verificado contra `transcript_raw`) |
+| **Descubrimiento** | **`kind='as_is'`** — primer proceso del piloto con evidencia suficiente para reconstruir la realidad, no diseñarla. 10 pasos, 37 s, USD 0.0596 |
+| Análisis de automatización | 10 pasos evaluados, 13 s, USD 0.0187, **62 minutos automatizables por ejecución** |
+
+**Costo total de la cadena completa: ~USD 0.10 por proceso descubierto desde voz.**
+
+Ajustes de límites aplicados antes de la prueba: validación contra el tope de 24 MB de Whisper con mensaje accionable, y timeouts de 900 s (transcripción) / 300 s (descarga y estructuración) para soportar audios de hasta ~1 hora.
+
+**Bug encontrado y corregido durante la prueba (importante para futuros workflows):** los nodos Code de n8n **no propagan el binario** — hay que devolver `binary: item.binary` explícitamente o el archivo se pierde para el nodo siguiente. Además, en modo filesystem el campo `binary.data` contiene el marcador `'filesystem-v2'`, no el base64; el tamaño exacto está en `binary.bytes`.
+
+## Caso de referencia del piloto (usar para demos y regresión)
+
+**Proyecto:** `Revisión de contratos laborales (narrado por voz)` · id `cccccccc-1111-0000-0000-000000000003` · proceso id `5b01aa14-03da-4b34-ae5d-bc6853ac30e6`.
+
+Es el mejor activo de demo que tiene el piloto: proceso legal real, narrado por su dueño, descubierto `as_is` con 10 pasos y con una separación nítida entre trabajo administrativo y criterio profesional. Conservarlo intacto y usarlo como caso de regresión al cambiar prompts.
+
+| # | Paso | Clase | Nivel |
+|---|---|---|---|
+| 1 | Recepción de solicitud y borrador | extracción | L3 |
+| 2 | Preparación de documentos (descarga, renombrado, carpetas) | extracción | L3 |
+| 3 | Verificación de habilitantes (cédula, RUC, nombramiento, poder) | verificación | L2 |
+| 4 | **Revisión del abogado asociado** | **juicio experto** | **L0** |
+| 5 | **Revisión de calidad por el socio** | **juicio experto** | **L0** |
+| 6 | **Decisión: aprobación del redline** | **juicio experto** | **L0** |
+| 7 | Comunicación al cliente y ciclos de reproceso | enrutamiento | L2 |
+| 8 | Consolidación y gestión de firmas | extracción | L2 |
+| 9 | Registro en sistemas laborales (SUT / IESS) | extracción | L3 |
+| 10 | Cierre y archivo | extracción | L3 |
+
+**Dato de gobernanza para conversar con el usuario:** 4 de los 10 pasos se degradaron de L3 a L2 por el techo `max_autonomy='L2'` de la organización. La configuración del cliente está funcionando como freno real, no decorativo.
 
 ## Próximos pasos del constructor (orden)
 
-1. **Probar WF-06 con el audio real del usuario** (`prueba 1 wf revisión contrato laboral.m4a`, 4.9 MB, ya grabado) — bloqueado hasta que lo suba al bucket, ver G11 arriba.
-2. **F4: WF-05 generación de entregables** desde el canónico: diagrama Mermaid determinístico con capa de autonomía por color, SOP as-is/to-be en documento, y workflow n8n ensamblado desde plantillas `tpl-*`.
+1. **F4: WF-05 generación de entregables** desde el canónico: diagrama Mermaid determinístico con capa de autonomía por color, SOP as-is/to-be en documento, y workflow n8n ensamblado desde plantillas `tpl-*`. Usar el caso de contratos laborales como insumo.
 3. Encadenar WF-04 al final de WF-02+03 (hoy se invoca por separado; el encadenamiento hace que un clic dispare todo).
 4. Nota de calidad para F6: la salida del descubridor varía entre corridas con evidencia delgada; con corpus real conviene medir estabilidad.
