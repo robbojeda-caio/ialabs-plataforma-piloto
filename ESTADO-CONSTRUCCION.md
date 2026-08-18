@@ -1,8 +1,29 @@
 # Estado de Construcción del Piloto
 
 **Agente responsable:** `constructor-piloto` (definido en `.claude/agents/constructor-piloto.md`)
-**Última actualización:** 2026-08-15 · sesión de Claude Code
-**Fase actual:** **F3 COMPLETADA** ✅ (WF-02+03 v3 + WF-04, ambos verificados con datos reales). Siguiente: F4 — generación de entregables (WF-05). Capacidades multimodales en [08-fuentes-multimodales-y-referencia.md](08-fuentes-multimodales-y-referencia.md).
+**Última actualización:** 2026-08-18 · sesión de Claude Code
+**Fase actual:** **F4 COMPLETADA** ✅ — los tres entregables se generan end-to-end desde el canónico y están verificados con el proceso real de contratos laborales. Siguiente: F5 (frontend one-click). Capacidades multimodales en [08-fuentes-multimodales-y-referencia.md](08-fuentes-multimodales-y-referencia.md).
+
+## F4 — WF-05 Generación de Entregables ✅ (2026-08-18)
+
+`[CORE] WF-05 Generacion de Entregables` · id `11iQAkj2nqmGutIR` · **PUBLICADO** · webhook `POST .../webhook/piloto-entregables` · payload `{"process_id":"<uuid>"}`
+
+**Principio de diseño:** dos de los tres entregables se generan **determinísticamente en código**; solo el SOP pasa por un modelo.
+
+| Entregable | Cómo se genera | Por qué |
+|---|---|---|
+| **Diagrama Mermaid** | Código JS desde el canónico | Un diagrama generado por LLM puede contradecir al proceso descubierto. Derivarlo en código lo hace imposible |
+| **SOP** | Claude Sonnet, 7 secciones fijas | Redactar prosa profesional sí requiere un modelo; los datos se inyectan del canónico y tiene prohibido agregar contenido |
+| **Workflow n8n** | Ensamblado desde plantillas por `task_class` | Pedirle a un LLM que escriba JSON de n8n produce flujos frágiles. Las plantillas están validadas a mano |
+
+**Verificado (ejecución 165, 41 s) sobre el proceso real de contratos laborales:**
+- **Diagrama**: 10 nodos con forma por tipo y color por nivel de autonomía; capturó incluso el **ciclo de reproceso** (paso 6 → paso 4 cuando el socio no aprueba el redline)
+- **SOP**: 9.500 caracteres, cada paso con **cita textual de la narración**; detectó que "RUF" podría ser un error de dicción y lo declaró como vacío de evidencia en vez de corregirlo en silencio
+- **Workflow n8n**: 11 nodos, con los 3 pasos de juicio profesional como **paradas humanas explícitas** (`noOp` con nota), no como huecos; incluye advertencia de que requiere revisión y credenciales antes de activarse
+
+**Costo de la cadena completa, medido: USD 0,136 y ~1 min 51 s** desde audio hasta los tres entregables.
+
+**Vista de entregables (demo):** https://claude.ai/code/artifact/b1a78e6c-65ca-42a3-81cf-348f39743789 — sirve como referencia visual para construir la pantalla de resultados de F5.
 
 ### ⚠️ Operación: el proyecto Supabase se pausa por inactividad
 
@@ -289,6 +310,7 @@ Es el mejor activo de demo que tiene el piloto: proceso legal real, narrado por 
 
 ## Próximos pasos del constructor (orden)
 
-1. **F4: WF-05 generación de entregables** desde el canónico: diagrama Mermaid determinístico con capa de autonomía por color, SOP as-is/to-be en documento, y workflow n8n ensamblado desde plantillas `tpl-*`. Usar el caso de contratos laborales como insumo.
-3. Encadenar WF-04 al final de WF-02+03 (hoy se invoca por separado; el encadenamiento hace que un clic dispare todo).
+1. **Encadenar la cadena completa**: hoy WF-02+03 → WF-04 → WF-05 se invocan por separado. Encadenarlos con *Execute Workflow* para que un solo disparo produzca los entregables — es requisito del "one click" de F5.
+2. **F5: frontend one-click** (la fase más grande que queda): pantalla de carga con grabación de voz desde el navegador, progreso en vivo vía Realtime, visor de resultados en 3 pestañas, modal de activación con selector de autonomía y panel de aprobaciones L2. La vista de entregables publicada como artifact sirve de referencia visual.
+3. Guardar el SOP como archivo en Storage (hoy vive como Markdown en `deliverables.content`; para descargar en DOCX/PDF falta el paso de conversión).
 4. Nota de calidad para F6: la salida del descubridor varía entre corridas con evidencia delgada; con corpus real conviene medir estabilidad.
