@@ -308,9 +308,28 @@ Es el mejor activo de demo que tiene el piloto: proceso legal real, narrado por 
 
 **Dato de gobernanza para conversar con el usuario:** 4 de los 10 pasos se degradaron de L3 a L2 por el techo `max_autonomy='L2'` de la organización. La configuración del cliente está funcionando como freno real, no decorativo.
 
+## Cadena completa encadenada ✅ (2026-08-19)
+
+Un solo disparo al webhook `/piloto-descubrir` produce ahora **todo**: descubrimiento → análisis de automatización → los tres entregables. Verificado (ejecución 166): 12 pasos descubiertos, 12 evaluaciones, 3 entregables, sin intervención manual entre etapas.
+
+Implementación: cada workflow llama al webhook del siguiente con un nodo HTTP autenticado con la misma credencial Header Auth, con `onError: continueRegularOutput`. **Por qué así:** si el encadenamiento falla, lo ya producido queda guardado y puede retomarse — el fallo de un eslabón no borra el trabajo del anterior.
+
+## F5 — Frontend one-click (en construcción)
+
+Piezas construidas en `frontend/`:
+
+| Archivo | Qué resuelve |
+|---|---|
+| `components/GrabadorVoz.tsx` | Grabación en el navegador (MediaRecorder, Opus 24 kbps ≈ 10 MB/hora), medidor de nivel en vivo, **corte automático a los 15 min**, y el guion de 5 preguntas visible mientras se graba |
+| `components/ProgresoDescubrimiento.tsx` | Progreso en vivo por Realtime sobre `agent_runs`, con sondeo de respaldo si Realtime cae. Muestra el paso en lenguaje natural que escribe el propio agente |
+| `components/VisorEntregables.tsx` | Las 3 pestañas (Diagrama / Procedimiento / Flujo), leyenda de niveles, banner honesto cuando el proceso es `to_be`, y aviso de que el flujo requiere revisión antes de activarse |
+| `app/api/descubrir/route.ts` · `app/api/voz/route.ts` | Rutas de servidor que disparan los webhooks. **El secreto vive solo en el servidor**: el navegador nunca lo ve |
+| `lib/supabase.ts` | Cliente de navegador con la llave pública, protegido por RLS |
+
+Pendiente de F5: pantallas de dashboard y proyecto que unan estas piezas, subida del audio a Storage desde el navegador, panel de aprobaciones L2, y estilos.
+
 ## Próximos pasos del constructor (orden)
 
-1. **Encadenar la cadena completa**: hoy WF-02+03 → WF-04 → WF-05 se invocan por separado. Encadenarlos con *Execute Workflow* para que un solo disparo produzca los entregables — es requisito del "one click" de F5.
-2. **F5: frontend one-click** (la fase más grande que queda): pantalla de carga con grabación de voz desde el navegador, progreso en vivo vía Realtime, visor de resultados en 3 pestañas, modal de activación con selector de autonomía y panel de aprobaciones L2. La vista de entregables publicada como artifact sirve de referencia visual.
+1. **Terminar F5**: pantallas que ensamblen los componentes ya construidos, subida a Storage desde el navegador y hoja de estilos completa.
 3. Guardar el SOP como archivo en Storage (hoy vive como Markdown en `deliverables.content`; para descargar en DOCX/PDF falta el paso de conversión).
 4. Nota de calidad para F6: la salida del descubridor varía entre corridas con evidencia delgada; con corpus real conviene medir estabilidad.
