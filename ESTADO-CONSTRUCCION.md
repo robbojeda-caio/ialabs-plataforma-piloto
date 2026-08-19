@@ -314,6 +314,33 @@ Un solo disparo al webhook `/piloto-descubrir` produce ahora **todo**: descubrim
 
 Implementación: cada workflow llama al webhook del siguiente con un nodo HTTP autenticado con la misma credencial Header Auth, con `onError: continueRegularOutput`. **Por qué así:** si el encadenamiento falla, lo ya producido queda guardado y puede retomarse — el fallo de un eslabón no borra el trabajo del anterior.
 
+## WF-06 Gate de Autonomía ✅ — la gobernanza deja de ser declarativa (2026-08-19)
+
+`[CORE] WF-06 Gate de Autonomia` · id `yDskXgFOYcp9k4ki` · **PUBLICADO** · invocable de dos formas: como sub-workflow (Execute Workflow) o por `POST .../webhook/piloto-gate` autenticado.
+
+**Qué hace:** cualquier flujo generado lo invoca **antes** de ejecutar un paso. Calcula el nivel efectivo = mín(nivel del paso, techo de la organización) y devuelve `{ejecutar, motivo}`:
+
+| Nivel | Comportamiento | Auditoría |
+|---|---|---|
+| **L0** | No ejecuta. Registra la sugerencia | `paso.sugerido_sin_ejecutar`, actor **agente** |
+| **L1** | Crea propuesta sin plazo y no ejecuta | queda en `pending_approvals` |
+| **L2** | Crea solicitud con plazo de 24 h y **detiene el paso** hasta que una persona decida | `paso.aprobado_y_ejecutado` / `paso.no_ejecutado`, actor **usuario** con su id |
+| **L3** | Ejecuta y audita | `paso.ejecutado_autonomo`, actor **agente** |
+
+**Cómo se detiene de verdad:** nodo Wait con reanudación por webhook. Al crear la solicitud se guarda `$execution.resumeUrl` en `pending_approvals.resume_token`; el paso queda congelado hasta que alguien decide en el panel. Si nadie decide en 24 h, la espera vence, **no se ejecuta** y la solicitud se marca `expirado`.
+
+**Verificado end-to-end (ejecuciones 169 y 170):**
+- L0 → no ejecutó, auditado con actor `agente`
+- L2 → quedó detenido con token y plazo; al aprobar, el paso **despertó** y quedó auditado como `paso.aprobado_y_ejecutado` con actor `usuario` **y el id de quien aprobó**
+
+Esa distinción de actor es el corazón de la gobernanza: cuando el agente actúa solo queda registrado como agente; cuando actúa porque alguien lo autorizó, la responsabilidad queda con la persona.
+
+**Frontend:** nueva ruta `app/api/aprobaciones/decidir/route.ts`. Hace dos cosas y ambas importan: registra la decisión en base (evidencia auditable) **y** llama al `resume_token` para despertar el paso. Si la reanudación falla, la decisión ya quedó guardada y el workflow la leerá al vencer su espera — no se pierde.
+
+### Deuda conocida: payload de auditoría doblemente codificado
+
+Los campos `jsonb` que n8n escribe con `JSON.stringify` quedan como *string* dentro de `jsonb`, así que `payload->>'campo'` devuelve `null` y hay que leerlos con `(payload #>> '{}')::jsonb`. Afecta a `audit_log.payload`, `deliverables.content` y `processes.canonical`. No rompe nada —el frontend ya los desenvuelve— pero conviene normalizarlo antes del cliente real, porque el panel de auditoría consultable es parte del valor prometido.
+
 ## F5 — Frontend one-click ✅ construido (2026-08-19)
 
 **Build limpio: 8 rutas.** Desplegado por Git a Vercel.
@@ -341,7 +368,9 @@ Falta una vez del lado del usuario, porque toca identidad y no puedo hacerlo yo:
 ## Próximos pasos del constructor (orden)
 
 1. **G12 (usuario)**: habilitar acceso por correo en Supabase y vincular su usuario a la organización — es lo que falta para usar el frontend de verdad.
-2. Probar el flujo completo desde el navegador: grabar → descubrir → ver entregables, y corregir lo que aparezca.
-3. **WF-06 runtime de aprobaciones L2**: hoy el panel de aprobaciones lee `pending_approvals`, pero ningún workflow escribe ahí todavía. Falta el gate real que crea la solicitud y espera la decisión.
+2. Probar el flujo completo desde el navegador: grabar → descubrir → ver entregables → aprobar un paso L2, y corregir lo que aparezca.
+3. Que WF-05 genere los flujos **ya conectados al gate**: hoy el workflow ensamblado marca los pasos L2 con una nota que dice "conectar al gate antes de activar"; con WF-06 construido, el ensamblador puede insertar esa llamada automáticamente.
+4. Normalizar los campos `jsonb` doblemente codificados (ver deuda arriba).
+5. Después: WF-07 grabación de pantalla y WF-08 comparación con corpus de referencia (ver [08](08-fuentes-multimodales-y-referencia.md)).
 3. Guardar el SOP como archivo en Storage (hoy vive como Markdown en `deliverables.content`; para descargar en DOCX/PDF falta el paso de conversión).
 4. Nota de calidad para F6: la salida del descubridor varía entre corridas con evidencia delgada; con corpus real conviene medir estabilidad.

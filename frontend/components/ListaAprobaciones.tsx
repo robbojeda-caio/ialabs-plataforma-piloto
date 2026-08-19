@@ -29,6 +29,7 @@ export default function ListaAprobaciones({
 }) {
   const [lista, setLista] = useState<Aprobacion[]>(iniciales);
   const [ocupada, setOcupada] = useState<string | null>(null);
+  const [aviso, setAviso] = useState<string | null>(null);
 
   useEffect(() => {
     const sb = crearClienteNavegador();
@@ -57,27 +58,33 @@ export default function ListaAprobaciones({
   }, [organizacionId]);
 
   async function decidir(id: string, aprobar: boolean) {
-    setOcupada(id);
-    const sb = crearClienteNavegador();
-    const { data: sesion } = await sb.auth.getUser();
-
     let motivo: string | null = null;
     if (!aprobar) {
-      motivo = window.prompt("¿Por qué lo rechazas? (queda registrado en la auditoría)") || "Sin motivo indicado";
+      motivo =
+        window.prompt("¿Por qué lo rechazas? (queda registrado en la auditoría)") ||
+        "Sin motivo indicado";
     }
 
-    const { error } = await sb
-      .from("pending_approvals")
-      .update({
-        status: aprobar ? "aprobado" : "rechazado",
-        decision_reason: motivo,
-        decided_by: sesion.user?.id ?? null,
-        decided_at: new Date().toISOString(),
-      })
-      .eq("id", id);
+    setOcupada(id);
+    setAviso(null);
+
+    // La ruta de servidor registra la decisión y además reanuda el paso detenido
+    const r = await fetch("/api/aprobaciones/decidir", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ aprobacion_id: id, aprobar, motivo }),
+    });
+    const datos = await r.json();
 
     setOcupada(null);
-    if (!error) setLista((p) => p.filter((a) => a.id !== id));
+
+    if (!r.ok) {
+      setAviso(datos.error ?? "No pudimos registrar tu decisión.");
+      return;
+    }
+
+    if (datos.aviso) setAviso(datos.aviso);
+    setLista((p) => p.filter((a) => a.id !== id));
   }
 
   if (lista.length === 0) {
@@ -91,6 +98,7 @@ export default function ListaAprobaciones({
 
   return (
     <div className="rejilla" style={{ gridTemplateColumns: "1fr" }}>
+      {aviso && <p className="aviso-activacion">{aviso}</p>}
       {lista.map((a) => (
         <div key={a.id} className="aprobacion">
           <div>
