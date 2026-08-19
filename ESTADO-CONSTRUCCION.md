@@ -314,22 +314,34 @@ Un solo disparo al webhook `/piloto-descubrir` produce ahora **todo**: descubrim
 
 Implementación: cada workflow llama al webhook del siguiente con un nodo HTTP autenticado con la misma credencial Header Auth, con `onError: continueRegularOutput`. **Por qué así:** si el encadenamiento falla, lo ya producido queda guardado y puede retomarse — el fallo de un eslabón no borra el trabajo del anterior.
 
-## F5 — Frontend one-click (en construcción)
+## F5 — Frontend one-click ✅ construido (2026-08-19)
 
-Piezas construidas en `frontend/`:
+**Build limpio: 8 rutas.** Desplegado por Git a Vercel.
 
 | Archivo | Qué resuelve |
 |---|---|
-| `components/GrabadorVoz.tsx` | Grabación en el navegador (MediaRecorder, Opus 24 kbps ≈ 10 MB/hora), medidor de nivel en vivo, **corte automático a los 15 min**, y el guion de 5 preguntas visible mientras se graba |
-| `components/ProgresoDescubrimiento.tsx` | Progreso en vivo por Realtime sobre `agent_runs`, con sondeo de respaldo si Realtime cae. Muestra el paso en lenguaje natural que escribe el propio agente |
-| `components/VisorEntregables.tsx` | Las 3 pestañas (Diagrama / Procedimiento / Flujo), leyenda de niveles, banner honesto cuando el proceso es `to_be`, y aviso de que el flujo requiere revisión antes de activarse |
-| `app/api/descubrir/route.ts` · `app/api/voz/route.ts` | Rutas de servidor que disparan los webhooks. **El secreto vive solo en el servidor**: el navegador nunca lo ve |
-| `lib/supabase.ts` | Cliente de navegador con la llave pública, protegido por RLS |
+| `components/PantallaDescubrimiento.tsx` | **La pantalla del one-click**: captura (documentos o voz) → botón único → progreso → resultados, en un solo lugar. Gestiona las tres fases sin que el usuario navegue |
+| `components/GrabadorVoz.tsx` | Grabación en navegador (Opus 24 kbps ≈ 10 MB/hora), medidor de nivel, **corte automático a los 15 min**, guion de 5 preguntas visible mientras se graba |
+| `components/CargaDocumentos.tsx` | Arrastrar y soltar con subida directa a Storage bajo RLS; valida formato y tamaño **antes** de subir y explica el rechazo en lenguaje claro |
+| `components/ProgresoDescubrimiento.tsx` | Realtime sobre `agent_runs` con sondeo de respaldo. Muestra el paso en lenguaje natural que escribe el agente, no un porcentaje mudo |
+| `components/VisorEntregables.tsx` | Las 3 pestañas, leyenda de niveles, banner honesto si el proceso es `to_be`, aviso de revisión antes de activar |
+| `components/ListaAprobaciones.tsx` | Aprobaciones L2 en tiempo real; el rechazo pide motivo y queda en auditoría |
+| `app/page.tsx` · `app/proyecto/[id]` · `app/aprobaciones` · `app/entrar` | Dashboard con minutos automatizables por proyecto, pantalla de proceso, panel de aprobaciones y acceso por enlace mágico |
+| `app/api/{descubrir,voz,ingesta}/route.ts` | Disparan los webhooks. **El secreto vive solo en el servidor**: el navegador nunca lo ve |
+| `middleware.ts` | Refresca la sesión en cada navegación |
 
-Pendiente de F5: pantallas de dashboard y proyecto que unan estas piezas, subida del audio a Storage desde el navegador, panel de aprobaciones L2, y estilos.
+### Compuerta G12 — poner el frontend en uso real
+
+Falta una vez del lado del usuario, porque toca identidad y no puedo hacerlo yo:
+
+1. **Habilitar el acceso por correo** en Supabase → Authentication → Providers → Email (activar "Email OTP" / magic link). En Authentication → URL Configuration, agregar `https://ialabs-plataforma-piloto.vercel.app` como Site URL y Redirect URL.
+2. **Crear tu usuario real**: entrar a `/entrar` con tu correo y pedir el enlace. Eso crea la cuenta en `auth.users`.
+3. **Vincularte a la organización demo** (avísame y lo hago con SQL, o hazlo tú): insertar en `memberships` tu `user_id` con la organización `aaaaaaaa-0000-0000-0000-000000000001` y rol `admin`. Sin esa fila, RLS te dejará fuera de todo — que es exactamente lo que debe pasar.
 
 ## Próximos pasos del constructor (orden)
 
-1. **Terminar F5**: pantallas que ensamblen los componentes ya construidos, subida a Storage desde el navegador y hoja de estilos completa.
+1. **G12 (usuario)**: habilitar acceso por correo en Supabase y vincular su usuario a la organización — es lo que falta para usar el frontend de verdad.
+2. Probar el flujo completo desde el navegador: grabar → descubrir → ver entregables, y corregir lo que aparezca.
+3. **WF-06 runtime de aprobaciones L2**: hoy el panel de aprobaciones lee `pending_approvals`, pero ningún workflow escribe ahí todavía. Falta el gate real que crea la solicitud y espera la decisión.
 3. Guardar el SOP como archivo en Storage (hoy vive como Markdown en `deliverables.content`; para descargar en DOCX/PDF falta el paso de conversión).
 4. Nota de calidad para F6: la salida del descubridor varía entre corridas con evidencia delgada; con corpus real conviene medir estabilidad.
