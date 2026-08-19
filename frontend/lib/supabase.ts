@@ -1,11 +1,25 @@
 import { createBrowserClient } from "@supabase/ssr";
 
+/**
+ * Las variables NEXT_PUBLIC_* se incrustan en el paquete del navegador durante
+ * la compilación. Si faltan ahí, el cliente no se puede crear y todo falla en
+ * silencio: botones que no responden y ninguna pista de por qué. Preferimos
+ * detectarlo y decirlo.
+ */
+export function faltaConfiguracion(): boolean {
+  return !process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+}
+
 /** Cliente de navegador: usa la llave pública, protegida por RLS. */
 export function crearClienteNavegador() {
-  return createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const llave = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!url || !llave) {
+    throw new Error(
+      "La plataforma no recibió su configuración de acceso. Avisa al equipo técnico."
+    );
+  }
+  return createBrowserClient(url, llave);
 }
 
 export type EstadoEjecucion =

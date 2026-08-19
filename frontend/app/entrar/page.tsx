@@ -1,29 +1,37 @@
 "use client";
 
 import { useState } from "react";
-import { crearClienteNavegador } from "@/lib/supabase";
+import { crearClienteNavegador, faltaConfiguracion } from "@/lib/supabase";
 
 export default function Entrar() {
   const [correo, setCorreo] = useState("");
   const [enviado, setEnviado] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
+  const sinConfigurar = faltaConfiguracion();
 
   async function enviarEnlace(e: React.FormEvent) {
     e.preventDefault();
     setEnviando(true);
     setError(null);
-    const sb = crearClienteNavegador();
-    const { error } = await sb.auth.signInWithOtp({
-      email: correo,
-      options: { emailRedirectTo: `${window.location.origin}/` },
-    });
-    setEnviando(false);
-    if (error) {
-      setError("No pudimos enviar el enlace. Revisa el correo e inténtalo de nuevo.");
-      return;
+    try {
+      const sb = crearClienteNavegador();
+      const { error } = await sb.auth.signInWithOtp({
+        email: correo,
+        options: { emailRedirectTo: `${window.location.origin}/` },
+      });
+      if (error) {
+        // El mensaje real de Supabase ayuda a distinguir un correo mal escrito
+        // de un límite de envío alcanzado o de registros deshabilitados.
+        setError(`No pudimos enviar el enlace: ${error.message}`);
+        return;
+      }
+      setEnviado(true);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "No pudimos enviar el enlace.");
+    } finally {
+      setEnviando(false);
     }
-    setEnviado(true);
   }
 
   return (
@@ -36,6 +44,22 @@ export default function Entrar() {
         <h1>Entrar</h1>
         <p>Te enviamos un enlace de acceso. Sin contraseñas que recordar.</p>
       </div>
+
+      {sinConfigurar && (
+        <div className="progreso-error" style={{ marginBottom: "1rem" }}>
+          <h3>Falta configuración</h3>
+          <p>
+            Esta instalación no recibió las llaves públicas de acceso, así que el envío
+            del enlace no puede funcionar todavía.
+          </p>
+          <p className="sugerencia">
+            En Vercel, las variables <code>NEXT_PUBLIC_SUPABASE_URL</code> y{" "}
+            <code>NEXT_PUBLIC_SUPABASE_ANON_KEY</code> no pueden estar marcadas como
+            <strong> Sensitive</strong>: deben incrustarse al compilar. Corrige eso y
+            vuelve a desplegar.
+          </p>
+        </div>
+      )}
 
       {enviado ? (
         <div className="panel">
