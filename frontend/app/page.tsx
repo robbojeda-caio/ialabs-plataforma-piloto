@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { crearClienteServidor, organizacionActiva } from "@/lib/supabase-servidor";
+import SinOrganizacion from "@/components/SinOrganizacion";
 
 export const dynamic = "force-dynamic";
 
@@ -15,7 +16,8 @@ type ProyectoVista = {
 
 export default async function Dashboard() {
   const contexto = await organizacionActiva();
-  if (!contexto) redirect("/entrar");
+  if (contexto.estado === "sin_sesion") redirect("/entrar");
+  if (contexto.estado === "sin_organizacion") return <SinOrganizacion correo={contexto.correo} />;
 
   const sb = await crearClienteServidor();
   const { data: proyectos } = await sb

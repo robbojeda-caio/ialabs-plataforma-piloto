@@ -24,11 +24,25 @@ export async function crearClienteServidor() {
   );
 }
 
-/** Organización activa del usuario. En el piloto, cada usuario pertenece a una. */
-export async function organizacionActiva() {
+export type Contexto =
+  | { estado: "sin_sesion" }
+  | { estado: "sin_organizacion"; correo: string }
+  | {
+      estado: "listo";
+      usuario: { id: string; email?: string };
+      rol: string;
+      organizacion: { id: string; name: string; max_autonomy: string };
+    };
+
+/**
+ * Contexto del usuario. Distingue "no inició sesión" de "inició sesión pero
+ * todavía nadie lo vinculó a una organización": son problemas distintos y
+ * mandarlos al mismo login deja a la persona dando vueltas sin entender por qué.
+ */
+export async function organizacionActiva(): Promise<Contexto> {
   const sb = await crearClienteServidor();
   const { data: sesion } = await sb.auth.getUser();
-  if (!sesion.user) return null;
+  if (!sesion.user) return { estado: "sin_sesion" };
 
   const { data } = await sb
     .from("memberships")
@@ -37,7 +51,13 @@ export async function organizacionActiva() {
     .limit(1)
     .maybeSingle();
 
-  if (!data) return null;
+  if (!data) return { estado: "sin_organizacion", correo: sesion.user.email ?? "" };
+
   const org = data.organizations as unknown as { id: string; name: string; max_autonomy: string };
-  return { usuario: sesion.user, rol: data.role as string, organizacion: org };
+  return {
+    estado: "listo",
+    usuario: { id: sesion.user.id, email: sesion.user.email },
+    rol: data.role as string,
+    organizacion: org,
+  };
 }

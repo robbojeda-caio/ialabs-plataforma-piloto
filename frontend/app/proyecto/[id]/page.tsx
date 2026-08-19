@@ -1,6 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { crearClienteServidor, organizacionActiva } from "@/lib/supabase-servidor";
 import PantallaDescubrimiento from "@/components/PantallaDescubrimiento";
+import SinOrganizacion from "@/components/SinOrganizacion";
 
 export const dynamic = "force-dynamic";
 
@@ -8,7 +9,8 @@ export default async function Proyecto({ params }: { params: Promise<{ id: strin
   const { id } = await params;
 
   const contexto = await organizacionActiva();
-  if (!contexto) redirect("/entrar");
+  if (contexto.estado === "sin_sesion") redirect("/entrar");
+  if (contexto.estado === "sin_organizacion") return <SinOrganizacion correo={contexto.correo} />;
 
   const sb = await crearClienteServidor();
   // RLS ya restringe a la organización del usuario; si no aparece, no es suya.

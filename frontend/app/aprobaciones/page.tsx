@@ -1,12 +1,14 @@
 import { redirect } from "next/navigation";
 import { crearClienteServidor, organizacionActiva } from "@/lib/supabase-servidor";
 import ListaAprobaciones from "@/components/ListaAprobaciones";
+import SinOrganizacion from "@/components/SinOrganizacion";
 
 export const dynamic = "force-dynamic";
 
 export default async function Aprobaciones() {
   const contexto = await organizacionActiva();
-  if (!contexto) redirect("/entrar");
+  if (contexto.estado === "sin_sesion") redirect("/entrar");
+  if (contexto.estado === "sin_organizacion") return <SinOrganizacion correo={contexto.correo} />;
 
   const sb = await crearClienteServidor();
   const { data } = await sb
