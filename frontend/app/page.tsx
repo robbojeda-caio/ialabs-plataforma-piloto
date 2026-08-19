@@ -1,48 +1,104 @@
-const supabaseConfigurada = Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL);
+import Link from "next/link";
+import { redirect } from "next/navigation";
+import { crearClienteServidor, organizacionActiva } from "@/lib/supabase-servidor";
 
-export default function Inicio() {
+export const dynamic = "force-dynamic";
+
+type ProyectoVista = {
+  id: string;
+  name: string;
+  process_type: string;
+  procesos: number;
+  minutos: number;
+  documentos: number;
+};
+
+export default async function Dashboard() {
+  const contexto = await organizacionActiva();
+  if (!contexto) redirect("/entrar");
+
+  const sb = await crearClienteServidor();
+  const { data: proyectos } = await sb
+    .from("projects")
+    .select("id, name, process_type, created_at")
+    .eq("organization_id", contexto.organizacion.id)
+    .eq("status", "activo")
+    .order("created_at", { ascending: false });
+
+  const vistas: ProyectoVista[] = [];
+  for (const p of proyectos ?? []) {
+    const [{ count: docs }, { data: procesos }] = await Promise.all([
+      sb.from("documents").select("id", { count: "exact", head: true }).eq("project_id", p.id),
+      sb.from("processes").select("canonical").eq("project_id", p.id),
+    ]);
+
+    let minutos = 0;
+    for (const proc of procesos ?? []) {
+      let c: unknown = proc.canonical;
+      for (let i = 0; i < 3 && typeof c === "string"; i++) {
+        try { c = JSON.parse(c); } catch { c = {}; }
+      }
+      const m = (c as { metrics_estimate?: { automatable_minutes_per_run?: number } })
+        ?.metrics_estimate?.automatable_minutes_per_run;
+      if (m) minutos += m;
+    }
+
+    vistas.push({
+      id: p.id,
+      name: p.name,
+      process_type: p.process_type,
+      procesos: procesos?.length ?? 0,
+      minutos,
+      documentos: docs ?? 0,
+    });
+  }
+
   return (
-    <main className="contenedor">
-      <p className="marca">IA Labs · Plataforma Agéntica</p>
-      <h1>Agente de Descubrimiento de Procesos</h1>
-      <p className="proposito">
-        Sube los documentos de tu empresa y descubre tus procesos: qué etapas
-        conviene automatizar, con qué grado de autonomía, y un flujo listo para
-        activar en tu propio ambiente. Automatización con responsabilidad,
-        eficiencia técnica y económica, y operación continua.
-      </p>
-
-      <div className="tarjetas">
-        <div className="tarjeta">
-          <span className={`estado ${supabaseConfigurada ? "ok" : "pendiente"}`}>
-            {supabaseConfigurada ? "Conectada" : "Pendiente de configurar"}
-          </span>
-          <h2>Base de datos y RAG</h2>
-          <p>Supabase multi-tenant con aislamiento por organización (RLS).</p>
-        </div>
-        <div className="tarjeta">
-          <span className="estado ok">Operativo</span>
-          <h2>Motor de agentes</h2>
-          <p>Orquestación n8n con niveles de autonomía L0–L3 auditados.</p>
-        </div>
-        <div className="tarjeta">
-          <span className="estado pendiente">Fase F1</span>
-          <h2>Estado del piloto</h2>
-          <p>Infraestructura base en construcción. Vertical legal.</p>
-        </div>
+    <main className="lienzo">
+      <div className="encabezado">
+        <h1>Tus procesos</h1>
+        <p>
+          Cada proyecto es un proceso que quieres entender y mejorar. Sube lo que tengas o
+          cuéntalo hablando: el agente hace el resto.
+        </p>
       </div>
 
-      <button className="cta" disabled>
-        + Nuevo descubrimiento
-      </button>
-      <p className="nota">
-        Disponible en la fase F5 del piloto. Este es el esqueleto de la
-        plataforma (F1).
-      </p>
+      {vistas.length === 0 ? (
+        <div className="vacio-estado">
+          <h2>Todavía no hay procesos aquí</h2>
+          <p>Crea el primero para empezar a descubrir cómo trabaja tu equipo.</p>
+        </div>
+      ) : (
+        <div className="rejilla">
+          {vistas.map((p) => (
+            <Link key={p.id} href={`/proyecto/${p.id}`} className="tarjeta">
+              <span
+                className={`estado-linea ${
+                  p.procesos > 0 ? "e-listo" : p.documentos > 0 ? "e-proceso" : "e-vacio"
+                }`}
+              >
+                <span className="pt" />
+                {p.procesos > 0
+                  ? "Proceso descubierto"
+                  : p.documentos > 0
+                  ? "Materiales cargados"
+                  : "Sin materiales"}
+              </span>
+              <h3>{p.name}</h3>
+              {p.minutos > 0 && (
+                <span className="ahorro">{p.minutos} min automatizables</span>
+              )}
+              <span className="meta">
+                {p.documentos} {p.documentos === 1 ? "material" : "materiales"}
+              </span>
+            </Link>
+          ))}
+        </div>
+      )}
 
-      <footer>
-        © {new Date().getFullYear()} IA Labs — Piloto interno. Interfaz de
-        referencia; nombre del producto por definir.
+      <footer className="pie">
+        {contexto.organizacion.name} · nivel máximo de autonomía permitido:{" "}
+        <strong>{contexto.organizacion.max_autonomy}</strong>
       </footer>
     </main>
   );
