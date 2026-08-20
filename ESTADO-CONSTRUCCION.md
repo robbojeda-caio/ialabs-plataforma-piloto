@@ -337,6 +337,28 @@ Esa distinción de actor es el corazón de la gobernanza: cuando el agente actú
 
 **Frontend:** nueva ruta `app/api/aprobaciones/decidir/route.ts`. Hace dos cosas y ambas importan: registra la decisión en base (evidencia auditable) **y** llama al `resume_token` para despertar el paso. Si la reanudación falla, la decisión ya quedó guardada y el workflow la leerá al vencer su espera — no se pierde.
 
+### Cierre de F4 (2026-08-20): los flujos generados nacen con el freno puesto
+
+Antes, el flujo ensamblado marcaba los pasos L2 con una nota pidiendo *"conectar al gate antes de activar"* — es decir, la gobernanza dependía de que alguien leyera una nota. Ahora el ensamblador construye, por cada paso automatizable, la tríada:
+
+**`Gate` → `¿Autorizado?` → `acción`** · con rama explícita **`No autorizado`**
+
+Un paso L2 no puede ejecutarse sin aprobación **aunque alguien active el flujo sin leer nada**. Verificado en el proceso real: el flujo pasó de 13 a **34 nodos**, con los **7 pasos automatizables cableados al gate** y los 5 de criterio profesional como paradas humanas.
+
+### 🐛 Defecto encontrado y corregido: la regeneración de entregables fallaba en silencio
+
+`deliverables` exige `(process_id, type, version)` único y WF-05 siempre insertaba `version = 1`. Al regenerar entregables de un proceso existente, **el insert fallaba y el workflow reportaba éxito igual**. Iba a ocurrir constantemente en producción (un cliente agrega un documento y vuelve a descubrir).
+
+Corregido: WF-05 consulta los entregables previos y calcula la siguiente versión por tipo, conservando el historial. El nodo de consulta lleva **`alwaysOutputData: true`** — que es además la solución general al patrón de abajo.
+
+### Patrón de n8n que ya mordió dos veces: "éxito" silencioso con 0 filas
+
+Un nodo Supabase que no devuelve filas **corta la cadena y la ejecución termina en `success`**, no en `error`. Pasó con `Limpiar Chunks Previos` (WF-01) y otra vez con `Obtener Proceso` (WF-05, al invocarlo con un id inexistente): el workflow "terminó bien" sin haber hecho nada.
+
+**Antes del cliente real**, todo workflow que empiece obteniendo un registro debe validar que existe y fallar con mensaje claro. Hoy un `process_id` equivocado se ve idéntico a un éxito.
+
+**Solución general:** `alwaysOutputData: true` en el nodo de consulta hace que emita un ítem vacío en vez de nada, y la cadena sigue. Aplicado ya en `Obtener Entregables Previos`; falta revisar el resto de nodos de lectura.
+
 ### Deuda conocida: payload de auditoría doblemente codificado
 
 Los campos `jsonb` que n8n escribe con `JSON.stringify` quedan como *string* dentro de `jsonb`, así que `payload->>'campo'` devuelve `null` y hay que leerlos con `(payload #>> '{}')::jsonb`. Afecta a `audit_log.payload`, `deliverables.content` y `processes.canonical`. No rompe nada —el frontend ya los desenvuelve— pero conviene normalizarlo antes del cliente real, porque el panel de auditoría consultable es parte del valor prometido.
