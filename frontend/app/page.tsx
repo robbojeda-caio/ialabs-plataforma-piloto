@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { crearClienteServidor, organizacionActiva } from "@/lib/supabase-servidor";
 import SinOrganizacion from "@/components/SinOrganizacion";
+import NuevoProceso from "@/components/NuevoProceso";
 
 export const dynamic = "force-dynamic";
 
@@ -65,10 +66,15 @@ export default async function Dashboard() {
         </p>
       </div>
 
+      <NuevoProceso organizacionId={contexto.organizacion.id} />
+
       {vistas.length === 0 ? (
         <div className="vacio-estado">
           <h2>Todavía no hay procesos aquí</h2>
-          <p>Crea el primero para empezar a descubrir cómo trabaja tu equipo.</p>
+          <p>
+            Crea el primero. Puedes subir lo que tengas escrito, o simplemente
+            contarlo hablando — con cualquiera de las dos basta.
+          </p>
         </div>
       ) : (
         <div className="rejilla">

@@ -249,6 +249,47 @@ button { font: inherit; cursor: pointer; border: none; background: none; color: 
 }
 .enlace-modo:hover { color: var(--indigo-hover); }
 
+/* ── Crear proceso ──────────────────────────────────── */
+.opcion-tipo {
+  display: flex; align-items: flex-start; gap: .65rem;
+  padding: .65rem .8rem; border: 1px solid var(--borde); border-radius: 8px;
+  cursor: pointer; transition: border-color .15s ease, background .15s ease;
+}
+.opcion-tipo:hover { border-color: var(--borde-fuerte); }
+.opcion-tipo.elegida { border-color: var(--indigo); background: var(--indigo-tenue); }
+.opcion-tipo input { margin-top: .25rem; accent-color: var(--indigo); }
+.opcion-tipo span { display: flex; flex-direction: column; gap: .1rem; }
+.opcion-tipo strong { font-size: .92rem; font-weight: 600; }
+.opcion-tipo small { font-size: .8rem; color: var(--tinta-suave); }
+
+/* ── Equipo ─────────────────────────────────────────── */
+.fila-invitar { display: flex; gap: .5rem; flex-wrap: wrap; }
+.fila-invitar input {
+  flex: 1 1 14rem; padding: .65rem .85rem; font: inherit;
+  border: 1px solid var(--borde-fuerte); border-radius: var(--r);
+  background: var(--panel); color: var(--tinta);
+}
+.fila-invitar select {
+  padding: .65rem .7rem; font: inherit;
+  border: 1px solid var(--borde-fuerte); border-radius: var(--r);
+  background: var(--panel); color: var(--tinta);
+}
+.nota-enlace {
+  display: flex; align-items: center; justify-content: space-between; gap: .8rem;
+  flex-wrap: wrap; font-size: .85rem; color: var(--tinta-media);
+  background: var(--panel-2); border-radius: 8px; padding: .7rem .9rem;
+}
+.lista-equipo { list-style: none; display: flex; flex-direction: column; gap: .5rem; }
+.lista-equipo li {
+  display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+  padding: .7rem .9rem; border: 1px solid var(--borde); border-radius: 8px;
+}
+.lista-equipo li.pendiente { border-left: 3px solid var(--n2); background: var(--n2-fondo); }
+.lista-equipo .quien { display: flex; flex-direction: column; gap: .15rem; min-width: 0; }
+.lista-equipo .quien strong { font-size: .92rem; font-weight: 600; overflow-wrap: anywhere; }
+.lista-equipo .quien small { font-size: .78rem; color: var(--tinta-suave); }
+.estado-equipo { display: flex; align-items: center; gap: .6rem; flex-shrink: 0; }
+
 /* ── Varios ─────────────────────────────────────────── */
 .cargando, .error { font-size: .92rem; color: var(--tinta-suave); }
 .error { color: var(--rojo); }
