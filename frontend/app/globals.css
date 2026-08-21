@@ -242,6 +242,13 @@ button { font: inherit; cursor: pointer; border: none; background: none; color: 
 .btn-aprobar { background: var(--n3); color: #fff; border-radius: 8px; padding: .55rem 1.1rem; font-weight: 600; font-size: .88rem; }
 .btn-rechazar { background: var(--panel); border: 1px solid var(--rojo); color: var(--rojo); border-radius: 8px; padding: .55rem 1.1rem; font-weight: 600; font-size: .88rem; }
 
+/* ── Acceso ─────────────────────────────────────────── */
+.enlace-modo {
+  font-size: .85rem; color: var(--indigo); text-align: left;
+  text-decoration: underline; text-underline-offset: 3px; padding: .15rem 0;
+}
+.enlace-modo:hover { color: var(--indigo-hover); }
+
 /* ── Varios ─────────────────────────────────────────── */
 .cargando, .error { font-size: .92rem; color: var(--tinta-suave); }
 .error { color: var(--rojo); }
