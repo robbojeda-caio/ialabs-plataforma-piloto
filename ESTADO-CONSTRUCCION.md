@@ -363,6 +363,25 @@ Un nodo Supabase que no devuelve filas **corta la cadena y la ejecución termina
 
 Los campos `jsonb` que n8n escribe con `JSON.stringify` quedan como *string* dentro de `jsonb`, así que `payload->>'campo'` devuelve `null` y hay que leerlos con `(payload #>> '{}')::jsonb`. Afecta a `audit_log.payload`, `deliverables.content` y `processes.canonical`. No rompe nada —el frontend ya los desenvuelve— pero conviene normalizarlo antes del cliente real, porque el panel de auditoría consultable es parte del valor prometido.
 
+## Autoservicio ✅ (2026-08-21) — el cliente ya puede empezar solo
+
+Era el hueco que descalificaba al piloto como producto: **no había forma de crear un proceso ni de invitar a nadie desde la plataforma** — todo se hacía con SQL.
+
+| Pieza | Qué resuelve |
+|---|---|
+| `components/NuevoProceso.tsx` | Crear un proceso desde el dashboard, eligiendo tipo (o dejando que el agente lo detecte). Al crearlo lleva directo a cargar materiales, porque un proceso vacío no sirve de nada |
+| `components/GestionEquipo.tsx` · `app/equipo` | Invitar personas, ver quién entró y quién falta, revocar invitaciones |
+| Tabla `invitations` + disparador | El corazón del diseño (ver abajo) |
+| `projects.created_by` con `default auth.uid()` | El frontend ya no tiene que saber quién es el usuario |
+
+### Decisión de diseño: las invitaciones NO dependen del correo
+
+El administrador registra el correo de la persona; cuando esa persona crea su cuenta con ese mismo correo, **un disparador en la base la vincula sola**. El admin comparte el enlace por donde quiera (WhatsApp, su propio correo).
+
+**Por qué así:** hoy mismo el límite de envíos de Supabase dejó al usuario sin poder entrar. Un sistema de invitaciones que depende del correo hereda esa fragilidad: si el correo falla, el cliente no puede armar su equipo. Este diseño funciona aunque el correo esté caído, y sigue funcionando igual cuando haya SMTP propio.
+
+**Verificado end-to-end en base:** se invitó a un correo inexistente, se creó la cuenta, y la membresía apareció sola con la invitación marcada como aceptada.
+
 ## F5 — Frontend one-click ✅ construido (2026-08-19)
 
 **Build limpio: 8 rutas.** Desplegado por Git a Vercel.
@@ -386,6 +405,16 @@ Falta una vez del lado del usuario, porque toca identidad y no puedo hacerlo yo:
 1. **Habilitar el acceso por correo** en Supabase → Authentication → Providers → Email (activar "Email OTP" / magic link). En Authentication → URL Configuration, agregar `https://ialabs-plataforma-piloto.vercel.app` como Site URL y Redirect URL.
 2. **Crear tu usuario real**: entrar a `/entrar` con tu correo y pedir el enlace. Eso crea la cuenta en `auth.users`.
 3. **Vincularte a la organización demo** (avísame y lo hago con SQL, o hazlo tú): insertar en `memberships` tu `user_id` con la organización `aaaaaaaa-0000-0000-0000-000000000001` y rol `admin`. Sin esa fila, RLS te dejará fuera de todo — que es exactamente lo que debe pasar.
+
+## Camino de piloto a producto vendible (acordado 2026-08-21)
+
+| # | Qué | Estado |
+|---|---|---|
+| 1 | **Crear procesos e invitar equipo desde la pantalla** | ✅ hecho |
+| 2 | Limpiar datos de prueba y separar ambiente demo del de clientes | pendiente |
+| 3 | Descarga de entregables (SOP en PDF/DOCX) — es lo que el cliente enseña internamente | pendiente |
+| 4 | Correo propio (Resend) + Supabase Pro | pendiente |
+| 5 | Activar flujos de verdad (conectores) — el salto grande | pendiente |
 
 ## Próximos pasos del constructor (orden)
 
